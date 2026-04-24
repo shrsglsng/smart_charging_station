@@ -5,6 +5,8 @@ import '../bloc/collect_bloc.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/repositories/slot_repository.dart';
 import '../../../core/utils/logger_util.dart';
+import '../../../core/utils/validation_util.dart';
+import '../../../core/utils/toast_service.dart';
 
 class CollectScreen extends StatefulWidget {
   const CollectScreen({super.key});
@@ -47,19 +49,11 @@ class _CollectScreenState extends State<CollectScreen> {
                 ? 'Identity Verified! Locker ${state.slotNumber} is opening.'
                 : 'Success! Please collect your phone from Locker ${state.slotNumber}';
             
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(message),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 4),
-              ),
-            );
+            ToastService.showInfo(context, message);
             context.go('/');
           }
           if (state.error != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.error!), backgroundColor: Colors.red),
-            );
+            ToastService.showError(context, state.error!);
           }
         },
         child: Scaffold(
@@ -148,27 +142,30 @@ class _CollectScreenState extends State<CollectScreen> {
                                     ? null
                                     : () {
                                         final phone = _phoneController.text.trim();
+                                        
+                                        // Phone Validation
+                                        if (!ValidationUtil.isValidPhone(phone)) {
+                                          ToastService.showError(context, 'Invalid phone number. Must be 10 digits.');
+                                          return;
+                                        }
+
                                         if (_isRecoveryMode) {
                                           final slotStr = _slotController.text.trim();
-                                          if (phone.length == 10 && slotStr.isNotEmpty) {
+                                          if (slotStr.isNotEmpty) {
                                             context.read<CollectBloc>().add(
                                                   RecoveryUnlockRequested(phone, int.parse(slotStr)),
                                                 );
                                           } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Please enter valid 10-digit number and Locker number')),
-                                            );
+                                            ToastService.showError(context, 'Please enter a valid Locker number.');
                                           }
                                         } else {
                                           final pin = _pinController.text.trim();
-                                          if (phone.length == 10 && pin.length == 4) {
+                                          if (pin.length == 4) {
                                             context.read<CollectBloc>().add(
                                                   RetrieveSessionRequested(phone, pin),
                                                 );
                                           } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Please enter valid 10-digit number and 4-digit key')),
-                                            );
+                                            ToastService.showError(context, 'Please enter a valid 4-digit key.');
                                           }
                                         }
                                       },
@@ -206,9 +203,7 @@ class _CollectScreenState extends State<CollectScreen> {
                               child: OutlinedButton(
                                 onPressed: () {
                                   AppLogger.info('ACTION: Get help clicked');
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Help Desk coming soon')),
-                                  );
+                                  ToastService.showInfo(context, 'Help Desk coming soon');
                                 },
                                 style: OutlinedButton.styleFrom(
                                   side: const BorderSide(color: Colors.grey),

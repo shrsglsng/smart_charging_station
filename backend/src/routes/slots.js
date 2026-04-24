@@ -7,6 +7,10 @@ const slotService = require('../services/slotService');
 router.get('/state', async (req, res) => {
   const machineId = req.machineId;
 
+  if (!machineId) {
+    return res.status(400).json({ error: 'Missing x-machine-id header' });
+  }
+
   try {
     const slots = await slotService.getSlotsByMachineId(machineId);
     
@@ -37,7 +41,7 @@ router.post('/assign', async (req, res) => {
     }
 
     // Update the specific slot: set status to PENDING, update user_phone and pin
-    const updatedSlot = await slotService.assignSlot(machineId, slot_number, phone_number, pin);
+    const updatedSlot = await slotService.assignSlot(machineId, parseInt(slot_number), phone_number, pin);
 
     res.json({ success: true, slot: updatedSlot });
   } catch (error) {

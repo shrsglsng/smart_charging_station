@@ -5,17 +5,17 @@
  * - Cannot be sequential digits (e.g., 1234, 2345, 9876, 8765)
  * 
  * @param {string} pin - The PIN to validate
- * @returns {boolean} - True if valid, false otherwise
+ * @returns {Object} - { isValid: boolean, reason?: string }
  */
 function validatePin(pin) {
   // Check if PIN is exactly 4 digits
   if (!/^\d{4}$/.test(pin)) {
-    return false;
+    return { isValid: false, reason: 'PIN must be exactly 4 digits' };
   }
 
   // Check for identical digits (e.g., 0000, 1111)
   if (/^(\d)\1{3}$/.test(pin)) {
-    return false;
+    return { isValid: false, reason: `Repetitive PIN (${pin}) is not allowed` };
   }
 
   // Check for sequential digits (forward and backward)
@@ -32,10 +32,10 @@ function validatePin(pin) {
   );
   
   if (isForwardSequential || isBackwardSequential) {
-    return false;
+    return { isValid: false, reason: `Sequential PIN (${pin}) is not allowed` };
   }
 
-  return true;
+  return { isValid: true };
 }
 
 module.exports = { validatePin };

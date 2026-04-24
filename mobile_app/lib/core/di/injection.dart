@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../repositories/slot_repository.dart';
+import '../repositories/setup_repository.dart';
 import '../utils/logger_util.dart';
 
 final sl = GetIt.instance;
@@ -53,4 +54,5 @@ Future<void> initInjection() async {
 
   // Repositories
   sl.registerLazySingleton<SlotRepository>(() => SlotRepository(sl<Dio>()));
+  sl.registerLazySingleton<SetupRepository>(() => SetupRepository(sl<Dio>()));
 }

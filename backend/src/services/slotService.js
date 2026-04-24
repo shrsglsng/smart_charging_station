@@ -2,66 +2,94 @@ const Slot = require('../models/Slot');
 const { validatePin } = require('../utils/pinValidator');
 
 class SlotService {
-  // Get all slots for a machine
+  // Get all active slots for a machine
   async getSlotsByMachineId(machineId) {
-    return Slot.find({ machine_id: machineId }).sort({ slot_number: 1 });
+    return Slot.find({ machine_id: machineId, status: { $ne: 'COMPLETED' } }).sort({ slot_number: 1 });
   }
 
-  // Get a specific slot by machine_id and slot_number
-  async getSlotByMachineAndSlotNumber(machineId, slotNumber) {
-    return Slot.findOne({ machine_id: machineId, slot_number: slotNumber });
-  }
-
-  // Assign a slot: set status to PENDING, update user_phone and pin
+  // Assign a slot to a user (starts a session)
   async assignSlot(machineId, slotNumber, phoneNumber, pin) {
-    // Validate PIN
-    if (!validatePin(pin)) {
-      throw new Error('Invalid PIN');
-    }
+    const now = new Date();
+    const staleTime = new Date(now.getTime() - 3 * 60 * 1000); // 3 minutes ago
 
+    // Try to find an AVAILABLE slot OR a PENDING slot that hasn't moved in 3 minutes
     const slot = await Slot.findOneAndUpdate(
-      { machine_id: machineId, slot_number: slotNumber },
+      { 
+        machine_id: machineId, 
+        slot_number: slotNumber, 
+        $or: [
+          { status: 'AVAILABLE' },
+          { status: 'PENDING', updatedAt: { $lt: staleTime } }
+        ]
+      },
       {
         status: 'PENDING',
         user_phone: phoneNumber,
         pin: pin,
-        session_start: new Date(),
-        charging_ends_at: null // Reset charging ends at when assigning
+        session_start: now,
+        // Reset these in case of takeover
+        charging_ends_at: null,
+        collected_at: null,
+        total_minutes: null
       },
       { returnDocument: 'after' }
     );
 
     if (!slot) {
-      throw new Error('Slot not found');
+      throw new Error('Slot not found or already occupied');
     }
 
     return slot;
   }
-
-  // Release a slot: set status to AVAILABLE, wipe user details
+  // Release a slot: mark current as COMPLETED and create new AVAILABLE record
   async releaseSlot(machineId, slotNumber) {
-    const slot = await Slot.findOneAndUpdate(
-      { machine_id: machineId, slot_number: slotNumber },
-      {
-        status: 'AVAILABLE',
-        user_phone: null,
-        pin: null,
-        session_start: null,
-        charging_ends_at: null
-      },
-      { returnDocument: 'after' }
-    );
-
-    if (!slot) {
-      throw new Error('Slot not found');
+    // 1. Find the active slot record
+    const activeSlot = await Slot.findOne({ 
+      machine_id: machineId, 
+      slot_number: slotNumber,
+      status: { $ne: 'COMPLETED' }
+    });
+    
+    if (!activeSlot) {
+      throw new Error('No active session found for this slot');
     }
 
-    return slot;
+    const now = new Date();
+    let totalMinutes = 0;
+    let pickupType = 'NORMAL';
+
+    if (activeSlot.session_start) {
+      const diffMs = now - activeSlot.session_start;
+      totalMinutes = Math.floor(diffMs / (1000 * 60));
+      
+      // Determine pickup type
+      if (totalMinutes < 25) {
+        pickupType = 'EARLY';
+      } else if (activeSlot.status === 'LOCKED_EXPIRED') {
+        pickupType = 'OVERSTAY';
+      }
+    }
+
+    // 2. Mark current record as COMPLETED
+    activeSlot.status = 'COMPLETED';
+    activeSlot.collected_at = now;
+    activeSlot.total_minutes = totalMinutes;
+    activeSlot.pickup_type = pickupType;
+    await activeSlot.save();
+
+    // 3. Create a NEW AVAILABLE record for the next user
+    const newSlot = await Slot.create({
+      machine_id: machineId,
+      location: activeSlot.location,
+      slot_number: slotNumber,
+      status: 'AVAILABLE'
+    });
+
+    return newSlot;
   }
 
   // Verify phone+slot and release: for "Forgot PIN" flow
   async verifyAndReleaseSlot(machineId, phoneNumber, slotNumber) {
-    // Find the slot that matches ALL criteria
     const slot = await Slot.findOne({
       machine_id: machineId,
       user_phone: phoneNumber,
@@ -73,7 +101,6 @@ class SlotService {
       throw new Error('No matching session found for this phone and locker');
     }
 
-    // Release the slot if verified
     return this.releaseSlot(machineId, slotNumber);
   }
 
@@ -99,7 +126,7 @@ class SlotService {
   // Update slot status to LOCKED_CHARGING (when charging starts)
   async lockSlotForCharging(machineId, slotNumber, chargingEndsAt) {
     return Slot.findOneAndUpdate(
-      { machine_id: machineId, slot_number: slotNumber },
+      { machine_id: machineId, slot_number: slotNumber, status: 'PENDING' },
       {
         status: 'LOCKED_CHARGING',
         charging_ends_at: chargingEndsAt
@@ -111,7 +138,7 @@ class SlotService {
   // Update slot status to LOCKED_EXPIRED (when charging time expires)
   async expireSlot(machineId, slotNumber) {
     return Slot.findOneAndUpdate(
-      { machine_id: machineId, slot_number: slotNumber },
+      { machine_id: machineId, slot_number: slotNumber, status: 'LOCKED_CHARGING' },
       {
         status: 'LOCKED_EXPIRED'
       },

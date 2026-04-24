@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/repositories/slot_repository.dart';
 import '../../../core/utils/logger_util.dart';
+import '../../../core/utils/validation_util.dart';
+import '../../../core/utils/toast_service.dart';
 import '../bloc/start_charging_bloc.dart';
 
 class CredentialsScreen extends StatefulWidget {
@@ -51,9 +53,7 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
           context.read<StartChargingBloc>().add(ResetNavigationFlags());
         }
         if (state.error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.error!), backgroundColor: Colors.red),
-          );
+          ToastService.showError(context, state.error!);
         }
       },
       child: Scaffold(
@@ -142,7 +142,26 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 16),
+              // PIN Guidelines
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'PIN Guidelines:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  _GuidelineItem(text: 'Must be exactly 4 digits.'),
+                  _GuidelineItem(text: 'Avoid repetitive numbers (e.g., 1111).'),
+                  _GuidelineItem(text: 'Avoid sequential numbers (e.g., 1234, 4321).'),
+                ],
+              ),
+              const SizedBox(height: 32),
               BlocBuilder<StartChargingBloc, StartChargingState>(
                 builder: (context, state) {
                   return Column(
@@ -157,18 +176,23 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
                               : () {
                                   final phone = _phoneController.text.trim();
                                   final pin = _pinController.text.trim();
-                                  if (phone.length == 10 && pin.length == 4) {
-                                    AppLogger.info('ACTION: Continue button pressed -> Attempting session start for $phone');
-                                    context.read<StartChargingBloc>().add(
-                                          StartSessionRequested(phone, pin),
-                                        );
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Invalid Phone or Key'),
-                                      ),
-                                    );
+                                  
+                                  // Validation
+                                  if (!ValidationUtil.isValidPhone(phone)) {
+                                    ToastService.showError(context, 'Invalid phone number. Must be 10 digits.');
+                                    return;
                                   }
+                                  
+                                  final pinValidation = ValidationUtil.isPinSecure(pin);
+                                  if (!pinValidation.isValid) {
+                                    ToastService.showError(context, pinValidation.message);
+                                    return;
+                                  }
+
+                                  AppLogger.info('ACTION: Continue button pressed -> Attempting session start for $phone');
+                                  context.read<StartChargingBloc>().add(
+                                        StartSessionRequested(phone, pin),
+                                      );
                                 },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
@@ -203,6 +227,28 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _GuidelineItem extends StatelessWidget {
+  final String text;
+  const _GuidelineItem({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4.0),
+      child: Row(
+        children: [
+          const Icon(Icons.circle, size: 6, color: Colors.grey),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 13, color: Colors.grey),
+          ),
+        ],
       ),
     );
   }

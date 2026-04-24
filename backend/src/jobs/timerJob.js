@@ -27,8 +27,30 @@ const expireChargingSessions = async () => {
     if (expiredSlots.length > 0) {
       logger.info(`Expired ${expiredSlots.length} charging sessions`);
     }
+
+    // --- NEW: Cleanup Stale PENDING Slots (Strictly only PENDING) ---
+    const staleTime = new Date(now.getTime() - 60 * 1000); // 60 seconds ago
+    const staleResult = await Slot.updateMany(
+      { 
+        status: 'PENDING', 
+        updatedAt: { $lt: staleTime } 
+      },
+      {
+        $set: {
+          status: 'AVAILABLE',
+          user_phone: null,
+          pin: null,
+          session_start: null,
+          charging_ends_at: null
+        }
+      }
+    );
+
+    if (staleResult.modifiedCount > 0) {
+      logger.info(`BACKGROUND CLEANUP: Reset ${staleResult.modifiedCount} stagnant PENDING slots to AVAILABLE.`);
+    }
   } catch (error) {
-    logger.error('Error in timer job for expiring charging sessions:', error);
+    logger.error('Error in timer job:', error);
   }
 };
 

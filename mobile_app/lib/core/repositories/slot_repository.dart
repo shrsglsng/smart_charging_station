@@ -47,8 +47,14 @@ class SlotRepository {
         'slot_number': slotNumber,
         'is_closed': true,
       });
-      // The backend returns { action: 'ENABLE_CHARGING' } or { action: 'NONE' }
-      return response.data['action'] == 'ENABLE_CHARGING';
+
+      final action = response.data['action'];
+      if (action == 'UNLOCK_DOOR') {
+        // This simulates the rogue user scenario
+        throw Exception('SECURITY: Unauthorized closure! Door was automatically UNLOCKED.');
+      }
+
+      return action == 'ENABLE_CHARGING';
     } catch (e) {
       rethrow;
     }

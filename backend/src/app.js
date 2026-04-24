@@ -3,6 +3,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const extractMachineId = require('./middleware/extractMachineId');
 const errorHandler = require('./middleware/errorHandler');
+const path = require('path');
 const apiRoutes = require('./routes');
 const logger = require('./logger/logger');
 
@@ -22,8 +23,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Global middleware to extract machine ID
-app.use(extractMachineId);
+// Serve static files for Admin Web App
+app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
 
 // API routes - all under /api/v1
 app.use('/api/v1', apiRoutes);

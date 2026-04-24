@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../../core/repositories/slot_repository.dart';
 import '../../../core/utils/logger_util.dart';
+import '../../../core/utils/error_util.dart';
 
 // Events
 abstract class CollectEvent extends Equatable {
@@ -88,7 +89,7 @@ class CollectBloc extends Bloc<CollectEvent, CollectState> {
       }
     } catch (e) {
       AppLogger.error('BLOC: Error during session retrieval', e);
-      emit(state.copyWith(isLoading: false, error: e.toString()));
+      emit(state.copyWith(isLoading: false, error: ErrorUtil.formatError(e)));
     }
   }
 
@@ -110,7 +111,7 @@ class CollectBloc extends Bloc<CollectEvent, CollectState> {
       }
     } catch (e) {
       AppLogger.error('BLOC: Error during recovery unlock', e);
-      emit(state.copyWith(isLoading: false, error: e.toString()));
+      emit(state.copyWith(isLoading: false, error: ErrorUtil.formatError(e)));
     }
   }
 }

@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import '../../../core/repositories/slot_repository.dart';
 import '../../../core/models/slot_model.dart';
 import '../../../core/utils/logger_util.dart';
+import '../../../core/utils/error_util.dart';
 
 // Events
 abstract class StartChargingEvent extends Equatable {
@@ -141,21 +142,10 @@ class StartChargingBloc extends Bloc<StartChargingEvent, StartChargingState> {
     try {
       final fetchedSlots = await _slotRepository.getSlotsState();
       
-      final List<SlotModel> paddedSlots = List.generate(38, (index) {
-        final int slotNum = index + 1;
-        return fetchedSlots.firstWhere(
-          (s) => s.slotNumber == slotNum,
-          orElse: () => SlotModel(
-            slotNumber: slotNum,
-            status: 'LOCKED',
-          ),
-        );
-      });
-
-      final availableCount = paddedSlots.where((s) => s.status == 'AVAILABLE').length;
+      final availableCount = fetchedSlots.where((s) => s.status == 'AVAILABLE').length;
       
       emit(state.copyWith(
-        slots: paddedSlots,
+        slots: fetchedSlots,
         availableSlotsCount: availableCount,
       ));
     } catch (e) {
@@ -198,10 +188,10 @@ class StartChargingBloc extends Bloc<StartChargingEvent, StartChargingState> {
         AppLogger.info('BLOC: Credentials verified for ${event.phoneNumber}');
         add(FetchSlots());
       } else {
-        emit(state.copyWith(isLoading: false, error: 'Failed to start session'));
+        emit(state.copyWith(isLoading: false, error: 'Failed to start session. Please try again.'));
       }
     } catch (e) {
-      emit(state.copyWith(isLoading: false, error: e.toString()));
+      emit(state.copyWith(isLoading: false, error: ErrorUtil.formatError(e)));
     }
   }
 
@@ -224,10 +214,10 @@ class StartChargingBloc extends Bloc<StartChargingEvent, StartChargingState> {
         emit(state.copyWith(isLoading: false, isSuccess: true));
         AppLogger.info('BLOC: Slot ${state.selectedSlotNumber} successfully assigned and finished');
       } else {
-        emit(state.copyWith(isLoading: false, error: 'Failed to assign slot'));
+        emit(state.copyWith(isLoading: false, error: 'Failed to assign slot. Station state may have changed.'));
       }
     } catch (e) {
-      emit(state.copyWith(isLoading: false, error: e.toString()));
+      emit(state.copyWith(isLoading: false, error: ErrorUtil.formatError(e)));
     }
   }
 
@@ -260,7 +250,7 @@ class StartChargingBloc extends Bloc<StartChargingEvent, StartChargingState> {
         emit(state.copyWith(isLoading: false, error: 'Step 2 Failed: Could not simulate lock'));
       }
     } catch (e) {
-      emit(state.copyWith(isLoading: false, error: e.toString()));
+      emit(state.copyWith(isLoading: false, error: ErrorUtil.formatError(e)));
     }
   }
 

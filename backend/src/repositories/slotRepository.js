@@ -1,14 +1,14 @@
 const Slot = require('../models/Slot');
 
 class SlotRepository {
-  // Find slots by machine_id
+  // Find slots by machine_id (current active ones)
   async findByMachineId(machineId) {
-    return Slot.find({ machine_id: machineId });
+    return Slot.find({ machine_id: machineId, status: { $ne: 'COMPLETED' } });
   }
 
-  // Find a slot by machine_id and slot_number
+  // Find a slot by machine_id and slot_number (current active one)
   async findByMachineIdAndSlotNumber(machineId, slotNumber) {
-    return Slot.findOne({ machine_id: machineId, slot_number: slotNumber });
+    return Slot.findOne({ machine_id: machineId, slot_number: slotNumber, status: { $ne: 'COMPLETED' } });
   }
 
   // Find an active session by phone_number and machine_id
@@ -35,10 +35,10 @@ class SlotRepository {
     return Slot.findByIdAndUpdate(id, updateData, { returnDocument: 'after' });
   }
 
-  // Update a slot by machine_id and slot_number
+  // Update a slot by machine_id and slot_number (only if not completed)
   async updateByMachineAndSlot(machineId, slotNumber, updateData) {
     return Slot.findOneAndUpdate(
-      { machine_id: machineId, slot_number: slotNumber },
+      { machine_id: machineId, slot_number: slotNumber, status: { $ne: 'COMPLETED' } },
       updateData,
       { returnDocument: 'after' }
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../bloc/start_charging_bloc.dart';
+import '../../../core/utils/toast_service.dart';
 
 class InstructionsScreen extends StatelessWidget {
   const InstructionsScreen({super.key});
@@ -11,13 +12,10 @@ class InstructionsScreen extends StatelessWidget {
     return BlocListener<StartChargingBloc, StartChargingState>(
       listener: (context, state) async {
         if (state.isSuccess) {
-          // Success! Show snackbar and navigate home after delay
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Success! Locker ${state.selectedSlotNumber} is now assigned.'),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
+          // Success! Show toast and navigate home after delay
+          ToastService.showInfo(
+            context, 
+            'Success! Locker ${state.selectedSlotNumber} is now assigned.'
           );
           
           await Future.delayed(const Duration(seconds: 2));
@@ -26,9 +24,7 @@ class InstructionsScreen extends StatelessWidget {
           }
         }
         if (state.error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.error!), backgroundColor: Colors.red),
-          );
+          ToastService.showError(context, state.error!);
         }
       },
       child: Scaffold(
