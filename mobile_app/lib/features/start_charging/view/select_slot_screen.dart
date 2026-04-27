@@ -173,11 +173,6 @@ class _SelectSlotScreenState extends State<SelectSlotScreen> {
                                 ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Note: Remember your key and locker no',
-                        style: TextStyle(color: Colors.grey, fontSize: 13),
-                      ),
                     ],
                   );
                 },

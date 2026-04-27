@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/utils/logger_util.dart';
 import '../../../core/repositories/setup_repository.dart';

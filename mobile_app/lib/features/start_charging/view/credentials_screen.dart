@@ -119,7 +119,7 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
                       keyboardType: TextInputType.number,
                       maxLength: 4,
                       decoration: const InputDecoration(
-                        labelText: 'Key',
+                        labelText: 'PIN',
                         border: OutlineInputBorder(),
                         counterText: '',
                       ),
@@ -144,10 +144,19 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
               ),
               const SizedBox(height: 16),
               // PIN Guidelines
-              const Column(
+               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
+                    'REMEMBER YOUR PIN TO UNLOCK THE DOOR OF YOUR SLOT',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                 const SizedBox(height: 12),
+                  const Text(
                     'PIN Guidelines:',
                     style: TextStyle(
                       fontSize: 14,
@@ -155,10 +164,10 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
                       color: Colors.black87,
                     ),
                   ),
-                  SizedBox(height: 8),
-                  _GuidelineItem(text: 'Must be exactly 4 digits.'),
-                  _GuidelineItem(text: 'Avoid repetitive numbers (e.g., 1111).'),
-                  _GuidelineItem(text: 'Avoid sequential numbers (e.g., 1234, 4321).'),
+                  const SizedBox(height: 8),
+                  const _GuidelineItem(text: 'Must be exactly 4 digits.'),
+                  const _GuidelineItem(text: 'Avoid repetitive numbers (e.g., 1111).'),
+                  const _GuidelineItem(text: 'Avoid sequential numbers (e.g., 1234, 4321).'),
                 ],
               ),
               const SizedBox(height: 32),
