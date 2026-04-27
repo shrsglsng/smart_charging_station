@@ -15,8 +15,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Security middleware
-app.use(helmet());
+// Security middleware - Relaxed for IP-based access without SSL
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginOpenerPolicy: false,
+  hsts: false,
+}));
 app.use(cors());
 
 // Body parsing middleware
