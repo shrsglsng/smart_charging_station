@@ -31,8 +31,8 @@ app.use('/admin', express.static(adminPath));
 app.use('/api/v1', apiRoutes);
 
 // Fallback for Admin SPA (Single Page Application)
-// Using (.*) for maximum compatibility with all path-to-regexp versions
-app.get('/admin(.*)', (req, res) => {
+// Using a native RegExp to bypass all path-to-regexp version incompatibilities
+app.get(/^\/admin/, (req, res) => {
   res.sendFile(path.join(adminPath, 'index.html'));
 });
 
