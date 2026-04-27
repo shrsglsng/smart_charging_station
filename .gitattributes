@@ -1,0 +1,31 @@
+# Handle line endings automatically for files detected as text
+# and leave binary files untouched.
+* text=auto
+
+# Standard text files
+*.dart text
+*.js text
+*.json text
+*.md text
+*.html text
+*.css text
+*.yaml text
+*.yml text
+
+# Shell scripts must always use LF (Linux line endings)
+*.sh text eol=lf
+
+# Windows batch files must always use CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files - don't touch line endings
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.ttf binary
+*.otf binary
+*.svg binary
