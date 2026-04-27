@@ -7,6 +7,7 @@ import '../../../core/repositories/slot_repository.dart';
 import '../../../core/utils/logger_util.dart';
 import '../../../core/utils/validation_util.dart';
 import '../../../core/utils/toast_service.dart';
+import '../../../core/widgets/thank_you_dialog.dart';
 
 class CollectScreen extends StatefulWidget {
   const CollectScreen({super.key});
@@ -45,12 +46,7 @@ class _CollectScreenState extends State<CollectScreen> {
       child: BlocListener<CollectBloc, CollectState>(
         listener: (context, state) {
           if (state.isSuccess) {
-            String message = _isRecoveryMode 
-                ? 'Identity Verified! Locker ${state.slotNumber} is opening.'
-                : 'Success! Please collect your phone from Locker ${state.slotNumber}';
-            
-            ToastService.showInfo(context, message);
-            context.go('/');
+            ThankYouDialog.show(context, message: 'Do Visit Again');
           }
           if (state.error != null) {
             ToastService.showError(context, state.error!);

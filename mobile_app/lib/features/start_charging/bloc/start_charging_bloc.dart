@@ -47,8 +47,11 @@ class SelectSlot extends StartChargingEvent {
 // NEW: Final confirmation on Instructions Screen
 class ConfirmAndAssignSlot extends StartChargingEvent {}
 
-// NEW: Combined assign + lock for Dev Button
+// NEW: Combined assign + lock for Home Screen Dev Button
 class AssignAndSimulateLock extends StartChargingEvent {}
+
+// NEW: Only lock (used inside the Timer Popup)
+class SimulateDoorLockOnly extends StartChargingEvent {}
 
 // State
 class StartChargingState extends Equatable {
@@ -136,14 +139,13 @@ class StartChargingBloc extends Bloc<StartChargingEvent, StartChargingState> {
     on<SelectSlot>(_onSelectSlot);
     on<ConfirmAndAssignSlot>(_onConfirmAndAssignSlot);
     on<AssignAndSimulateLock>(_onAssignAndSimulateLock);
+    on<SimulateDoorLockOnly>(_onSimulateDoorLockOnly);
   }
 
   Future<void> _onFetchSlots(FetchSlots event, Emitter<StartChargingState> emit) async {
     try {
       final fetchedSlots = await _slotRepository.getSlotsState();
-      
       final availableCount = fetchedSlots.where((s) => s.status == 'AVAILABLE').length;
-      
       emit(state.copyWith(
         slots: fetchedSlots,
         availableSlotsCount: availableCount,
@@ -156,13 +158,11 @@ class StartChargingBloc extends Bloc<StartChargingEvent, StartChargingState> {
   void _onStartPeriodicPolling(StartPeriodicPolling event, Emitter<StartChargingState> emit) {
     _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(event.interval, (_) => add(FetchSlots()));
-    AppLogger.debug('BLOC: Started periodic polling every ${event.interval.inSeconds}s');
   }
 
   void _onStopPolling(StopPolling event, Emitter<StartChargingState> emit) {
     _pollingTimer?.cancel();
     _pollingTimer = null;
-    AppLogger.debug('BLOC: Stopped polling');
   }
 
   void _onResetNavigationFlags(ResetNavigationFlags event, Emitter<StartChargingState> emit) {
@@ -171,6 +171,7 @@ class StartChargingBloc extends Bloc<StartChargingEvent, StartChargingState> {
       isSlotAssigned: false,
       isDoorLocked: false,
       isSuccess: false,
+      error: null,
     ));
   }
 
@@ -185,10 +186,9 @@ class StartChargingBloc extends Bloc<StartChargingEvent, StartChargingState> {
           phoneNumber: event.phoneNumber,
           pin: event.pin,
         ));
-        AppLogger.info('BLOC: Credentials verified for ${event.phoneNumber}');
         add(FetchSlots());
       } else {
-        emit(state.copyWith(isLoading: false, error: 'Failed to start session. Please try again.'));
+        emit(state.copyWith(isLoading: false, error: 'Failed to start session.'));
       }
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: ErrorUtil.formatError(e)));
@@ -196,13 +196,11 @@ class StartChargingBloc extends Bloc<StartChargingEvent, StartChargingState> {
   }
 
   void _onSelectSlot(SelectSlot event, Emitter<StartChargingState> emit) {
-    AppLogger.info('BLOC: Slot ${event.slotNumber} selected (Not assigned yet)');
     emit(state.copyWith(selectedSlotNumber: event.slotNumber));
   }
 
   Future<void> _onConfirmAndAssignSlot(ConfirmAndAssignSlot event, Emitter<StartChargingState> emit) async {
     if (state.selectedSlotNumber == null || state.phoneNumber == null || state.pin == null) return;
-
     emit(state.copyWith(isLoading: true, error: null));
     try {
       final success = await _slotRepository.assignSlot(
@@ -211,10 +209,26 @@ class StartChargingBloc extends Bloc<StartChargingEvent, StartChargingState> {
         state.pin!,
       );
       if (success) {
-        emit(state.copyWith(isLoading: false, isSuccess: true));
-        AppLogger.info('BLOC: Slot ${state.selectedSlotNumber} successfully assigned and finished');
+        emit(state.copyWith(isLoading: false, isSlotAssigned: true));
+        AppLogger.info('BLOC: Slot assigned. Waiting for lock.');
       } else {
-        emit(state.copyWith(isLoading: false, error: 'Failed to assign slot. Station state may have changed.'));
+        emit(state.copyWith(isLoading: false, error: 'Locker is already in use.'));
+      }
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: ErrorUtil.formatError(e)));
+    }
+  }
+
+  Future<void> _onSimulateDoorLockOnly(SimulateDoorLockOnly event, Emitter<StartChargingState> emit) async {
+    if (state.selectedSlotNumber == null) return;
+    emit(state.copyWith(isLoading: true, error: null));
+    try {
+      final success = await _slotRepository.simulateDoorLock(state.selectedSlotNumber!);
+      if (success) {
+        emit(state.copyWith(isLoading: false, isSuccess: true));
+        AppLogger.info('BLOC: Simulation success');
+      } else {
+        emit(state.copyWith(isLoading: false, error: 'Simulation failed.'));
       }
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: ErrorUtil.formatError(e)));
@@ -223,31 +237,18 @@ class StartChargingBloc extends Bloc<StartChargingEvent, StartChargingState> {
 
   Future<void> _onAssignAndSimulateLock(AssignAndSimulateLock event, Emitter<StartChargingState> emit) async {
     if (state.selectedSlotNumber == null || state.phoneNumber == null || state.pin == null) return;
-
     emit(state.copyWith(isLoading: true, error: null));
     try {
-      AppLogger.info('BLOC: Starting sequential assign + lock simulation for slot ${state.selectedSlotNumber}');
-      
-      // 1. Assign Slot
-      final assignSuccess = await _slotRepository.assignSlot(
-        state.selectedSlotNumber!,
-        state.phoneNumber!,
-        state.pin!,
-      );
-      
+      final assignSuccess = await _slotRepository.assignSlot(state.selectedSlotNumber!, state.phoneNumber!, state.pin!);
       if (!assignSuccess) {
-        emit(state.copyWith(isLoading: false, error: 'Step 1 Failed: Could not assign slot'));
+        emit(state.copyWith(isLoading: false, error: 'Assignment Failed'));
         return;
       }
-
-      // 2. Simulate Door Lock
       final lockSuccess = await _slotRepository.simulateDoorLock(state.selectedSlotNumber!);
-      
       if (lockSuccess) {
         emit(state.copyWith(isLoading: false, isSuccess: true));
-        AppLogger.info('BLOC: Sequential assign + lock simulation SUCCESS');
       } else {
-        emit(state.copyWith(isLoading: false, error: 'Step 2 Failed: Could not simulate lock'));
+        emit(state.copyWith(isLoading: false, error: 'Lock Failed'));
       }
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: ErrorUtil.formatError(e)));
