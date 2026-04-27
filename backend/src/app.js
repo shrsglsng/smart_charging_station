@@ -24,10 +24,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files for Admin Web App
-app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
+const adminPath = path.resolve(__dirname, '..', 'public', 'admin');
+app.use('/admin', express.static(adminPath));
 
 // API routes - all under /api/v1
 app.use('/api/v1', apiRoutes);
+
+// Fallback for Admin SPA (Single Page Application)
+// Using (.*) for maximum compatibility with all path-to-regexp versions
+app.get('/admin(.*)', (req, res) => {
+  res.sendFile(path.join(adminPath, 'index.html'));
+});
 
 // Global error handler
 app.use(errorHandler);
