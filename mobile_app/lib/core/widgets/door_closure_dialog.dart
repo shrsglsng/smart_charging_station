@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../features/start_charging/bloc/start_charging_bloc.dart';
+import '../utils/popup_service.dart';
 import 'thank_you_dialog.dart';
 
 class DoorClosureDialog extends StatefulWidget {
@@ -33,9 +34,14 @@ class _DoorClosureDialogState extends State<DoorClosureDialog> {
   Timer? _timer;
   bool _isFailure = false;
 
+  late StartChargingBloc _bloc;
+
   @override
   void initState() {
     super.initState();
+    _bloc = context.read<StartChargingBloc>();
+    // Start fast polling for snappy door lock detection
+    _bloc.add(StartPeriodicPolling(const Duration(seconds: 1)));
     _startTimer();
   }
 
@@ -70,6 +76,8 @@ class _DoorClosureDialogState extends State<DoorClosureDialog> {
   @override
   void dispose() {
     _timer?.cancel();
+    // Stop fast polling when dialog closes
+    _bloc.add(StopPolling());
     super.dispose();
   }
 
@@ -78,24 +86,54 @@ class _DoorClosureDialogState extends State<DoorClosureDialog> {
     final size = MediaQuery.of(context).size;
 
     return BlocListener<StartChargingBloc, StartChargingState>(
-      listenWhen: (prev, curr) => prev.isSuccess != curr.isSuccess,
+      listenWhen: (prev, curr) {
+        if (prev.isSuccess != curr.isSuccess) return true;
+        
+        // Listen for actual hardware status change OR admin cancellation
+        if (prev.slots.isNotEmpty && curr.slots.isNotEmpty) {
+          final prevSlot = prev.slots.firstWhere((s) => s.slotNumber == widget.slotNumber, orElse: () => prev.slots.first);
+          final currSlot = curr.slots.firstWhere((s) => s.slotNumber == widget.slotNumber, orElse: () => curr.slots.first);
+          if (prevSlot.status != currSlot.status) {
+            if (currSlot.status == 'LOCKED_CHARGING' || currSlot.status == 'AVAILABLE') {
+              return true;
+            }
+          }
+        }
+        return false;
+      },
       listener: (context, state) {
-        if (state.isSuccess) {
+        bool isHardwareLocked = false;
+        bool isAdminCancelled = false;
+        if (state.slots.isNotEmpty) {
+           final slot = state.slots.firstWhere((s) => s.slotNumber == widget.slotNumber, orElse: () => state.slots.first);
+           isHardwareLocked = slot.status == 'LOCKED_CHARGING';
+           isAdminCancelled = slot.status == 'AVAILABLE';
+        }
+
+        if (state.isSuccess || isHardwareLocked) {
           _timer?.cancel();
           Navigator.of(context).pop(); // Close timer dialog
           ThankYouDialog.show(
             context, 
             message: 'The Door Is Locked And Your Phone Is Now Charging',
           );
+        } else if (isAdminCancelled) {
+          _timer?.cancel();
+          Navigator.of(context).pop(); // Close timer dialog
+          PopupService.showError(context, 'Session was cancelled by Admin');
+          context.go('/'); // Send back to home
         }
       },
-      child: Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: size.width * 0.6),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 50),
-            child: _isFailure ? _buildFailureView() : _buildTimerView(),
+      child: PopScope(
+        canPop: false, // Prevent back gesture from closing timer dialog
+        child: Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: size.width * 0.6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 50),
+              child: _isFailure ? _buildFailureView() : _buildTimerView(),
+            ),
           ),
         ),
       ),
@@ -148,28 +186,10 @@ class _DoorClosureDialogState extends State<DoorClosureDialog> {
         ),
         const SizedBox(height: 32),
         const Text(
-          'Waiting for door signal...',
+          'Waiting for the door to be locked...',
           style: TextStyle(
             fontStyle: FontStyle.italic,
             color: Colors.grey,
-          ),
-        ),
-        const SizedBox(height: 24),
-        // Simulation Button
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              context.read<StartChargingBloc>().add(SimulateDoorLockOnly());
-            },
-            icon: const Icon(Icons.bolt, color: Colors.white),
-            label: const Text('SIMULATE DOOR LOCK'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              shape: const StadiumBorder(),
-            ),
           ),
         ),
       ],

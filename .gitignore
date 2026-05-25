@@ -36,3 +36,11 @@ desktop.ini
 # Scratch and Reports
 backend/scratch/
 reports/
+
+#Private
+CHANGELOG.md
+Security.md
+graphify-out/
+.agents/
+.vscode/
+.github/

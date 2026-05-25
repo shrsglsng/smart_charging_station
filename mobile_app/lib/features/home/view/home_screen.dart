@@ -15,6 +15,11 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Image.asset(
+                'assets/Aibot_Logo.png',
+                height: 75,
+              ),
+              const SizedBox(height: 16),
               const Text(
                 'Welcome',
                 style: TextStyle(

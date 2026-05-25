@@ -6,7 +6,7 @@ import '../../../core/di/injection.dart';
 import '../../../core/repositories/slot_repository.dart';
 import '../../../core/utils/logger_util.dart';
 import '../../../core/utils/validation_util.dart';
-import '../../../core/utils/toast_service.dart';
+import '../../../core/utils/popup_service.dart';
 import '../bloc/start_charging_bloc.dart';
 
 class CredentialsScreen extends StatefulWidget {
@@ -53,7 +53,7 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
           context.read<StartChargingBloc>().add(ResetNavigationFlags());
         }
         if (state.error != null) {
-          ToastService.showError(context, state.error!);
+          PopupService.showError(context, state.error!);
         }
       },
       child: Scaffold(
@@ -71,14 +71,23 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20),
-              const Text(
-                'Enter Mobile Number',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Enter Mobile Number',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                  Image.asset(
+                    'assets/Aibot_Logo.png',
+                    height: 32,
+                  ),
+                ],
               ),
               const SizedBox(height: 48),
               Row(
@@ -188,13 +197,13 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
                                   
                                   // Validation
                                   if (!ValidationUtil.isValidPhone(phone)) {
-                                    ToastService.showError(context, 'Invalid phone number. Must be 10 digits.');
+                                    PopupService.showError(context, 'Invalid phone number. Must be 10 digits.');
                                     return;
                                   }
                                   
                                   final pinValidation = ValidationUtil.isPinSecure(pin);
                                   if (!pinValidation.isValid) {
-                                    ToastService.showError(context, pinValidation.message);
+                                    PopupService.showError(context, pinValidation.message);
                                     return;
                                   }
 

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../bloc/start_charging_bloc.dart';
 import '../../../core/utils/logger_util.dart';
+import '../../../core/utils/popup_service.dart';
 
 class SelectSlotScreen extends StatefulWidget {
   const SelectSlotScreen({super.key});
@@ -35,9 +36,7 @@ class _SelectSlotScreenState extends State<SelectSlotScreen> {
     return BlocListener<StartChargingBloc, StartChargingState>(
       listener: (context, state) {
         if (state.error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.error!), backgroundColor: Colors.red),
-          );
+          PopupService.showError(context, state.error!);
         }
       },
       child: Scaffold(
@@ -62,13 +61,23 @@ class _SelectSlotScreenState extends State<SelectSlotScreen> {
           children: [
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-              child: Text(
-                'Please select a locker',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Please select a locker',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                  Image(
+                    image: AssetImage('assets/Aibot_Logo.png'),
+                    height: 32,
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -82,14 +91,18 @@ class _SelectSlotScreenState extends State<SelectSlotScreen> {
                   return GridView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 10, // Optimized for Landscape Tablet
+                      crossAxisCount: 10,
                       crossAxisSpacing: 8,
                       mainAxisSpacing: 8,
-                      childAspectRatio: 0.9, // Make boxes slightly smaller/sturdier
+                      childAspectRatio: 0.9,
                     ),
-                    itemCount: state.slots.length,
+                    itemCount: state.slots.length + 2,
                     itemBuilder: (context, index) {
-                      final slot = state.slots[index];
+                      if (index == 4 || index == 5) {
+                        return const SizedBox.shrink();
+                      }
+                      final slotIndex = index > 5 ? index - 2 : index;
+                      final slot = state.slots[slotIndex];
                       final bool isAvailable = slot.status == 'AVAILABLE';
                       final bool isSelected = state.selectedSlotNumber == slot.slotNumber;
                       final bool isLocked = slot.status == 'LOCKED';
@@ -102,8 +115,8 @@ class _SelectSlotScreenState extends State<SelectSlotScreen> {
                           decoration: BoxDecoration(
                             color: isAvailable ? Colors.white : Colors.grey[100],
                             border: Border.all(
-                              color: isSelected 
-                                  ? Colors.blue 
+                              color: isSelected
+                                  ? Colors.blue
                                   : (isAvailable ? Colors.green : Colors.grey[300]!),
                               width: isSelected ? 3 : 1.5,
                             ),
@@ -121,7 +134,7 @@ class _SelectSlotScreenState extends State<SelectSlotScreen> {
                                     color: isAvailable ? Colors.black : Colors.grey[500],
                                   ),
                                 ),
-                                if (!isAvailable) 
+                                if (!isAvailable)
                                   Text(
                                     isLocked ? 'Locked' : 'Used',
                                     style: TextStyle(

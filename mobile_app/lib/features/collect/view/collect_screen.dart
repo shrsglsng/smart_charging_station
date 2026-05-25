@@ -6,7 +6,7 @@ import '../../../core/di/injection.dart';
 import '../../../core/repositories/slot_repository.dart';
 import '../../../core/utils/logger_util.dart';
 import '../../../core/utils/validation_util.dart';
-import '../../../core/utils/toast_service.dart';
+import '../../../core/utils/popup_service.dart';
 import '../../../core/widgets/thank_you_dialog.dart';
 
 class CollectScreen extends StatefulWidget {
@@ -49,7 +49,7 @@ class _CollectScreenState extends State<CollectScreen> {
             ThankYouDialog.show(context, message: 'Do Visit Again');
           }
           if (state.error != null) {
-            ToastService.showError(context, state.error!);
+            PopupService.showError(context, state.error!);
           }
         },
         child: Scaffold(
@@ -71,20 +71,35 @@ class _CollectScreenState extends State<CollectScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _isRecoveryMode ? 'Recover Locker' : 'Collect Mobile',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _isRecoveryMode 
-                        ? 'Enter Phone and Locker Number to unlock' 
-                        : 'Enter your details to unlock your locker',
-                      style: const TextStyle(color: Colors.grey),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _isRecoveryMode ? 'Recover Locker' : 'Collect Mobile',
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _isRecoveryMode
+                                    ? 'Enter Phone and Locker Number to unlock'
+                                    : 'Enter your details to unlock your locker',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Image.asset(
+                          'assets/Aibot_Logo.png',
+                          height: 40,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 48),
                     TextFormField(
@@ -141,7 +156,7 @@ class _CollectScreenState extends State<CollectScreen> {
                                         
                                         // Phone Validation
                                         if (!ValidationUtil.isValidPhone(phone)) {
-                                          ToastService.showError(context, 'Invalid phone number. Must be 10 digits.');
+                                          PopupService.showError(context, 'Invalid phone number. Must be 10 digits.');
                                           return;
                                         }
 
@@ -152,7 +167,7 @@ class _CollectScreenState extends State<CollectScreen> {
                                                   RecoveryUnlockRequested(phone, int.parse(slotStr)),
                                                 );
                                           } else {
-                                            ToastService.showError(context, 'Please enter a valid Locker number.');
+                                            PopupService.showError(context, 'Please enter a valid Locker number.');
                                           }
                                         } else {
                                           final pin = _pinController.text.trim();
@@ -161,7 +176,7 @@ class _CollectScreenState extends State<CollectScreen> {
                                                   RetrieveSessionRequested(phone, pin),
                                                 );
                                           } else {
-                                            ToastService.showError(context, 'Please enter a valid 4-digit key.');
+                                            PopupService.showError(context, 'Please enter a valid 4-digit key.');
                                           }
                                         }
                                       },
@@ -199,7 +214,7 @@ class _CollectScreenState extends State<CollectScreen> {
                               child: OutlinedButton(
                                 onPressed: () {
                                   AppLogger.info('ACTION: Get help clicked');
-                                  ToastService.showInfo(context, 'Help Desk coming soon');
+                                  PopupService.showInfo(context, 'Help Desk coming soon');
                                 },
                                 style: OutlinedButton.styleFrom(
                                   side: const BorderSide(color: Colors.grey),

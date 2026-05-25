@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/utils/logger_util.dart';
+import '../../../core/utils/popup_service.dart';
 import '../../../core/repositories/setup_repository.dart';
 
 class SetupScreen extends StatefulWidget {
@@ -72,12 +73,7 @@ class _SetupScreenState extends State<SetupScreen> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
+    PopupService.showError(context, message);
   }
 
   @override
@@ -103,18 +99,33 @@ class _SetupScreenState extends State<SetupScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    'Kiosk Setup',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blueAccent,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Initial configuration for this station',
-                    style: TextStyle(color: Colors.grey),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Kiosk Setup',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blueAccent,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Initial configuration for this station',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Image.asset(
+                        'assets/Aibot_Logo.png',
+                        height: 40,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 48),
                   TextFormField(

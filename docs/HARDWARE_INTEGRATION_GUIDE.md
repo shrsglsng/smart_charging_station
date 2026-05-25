@@ -63,7 +63,30 @@ Used by the controller on boot-up, after a power failure, or periodically to che
 
 **Hardware Requirement:** 
 - On Boot: Set all relays and locks immediately based on this array.
-- During Operation: If `lock_engaged` for a slot becomes `false` while it was previously `true`, the hardware should **pulse the solenoid** to release the door (User Collection Flow).
+- During Operation (Door Unlocking): The server DOES NOT push an active unlock command for the collection flow. Instead, the hardware MUST detect a state transition.
+  
+> [!IMPORTANT]
+> **CRITICAL: How to Unlock the Door (Collection Flow)**
+> When a user successfully enters their PIN to collect their phone, the server resets the slot to `AVAILABLE`. 
+> When your hardware polls `/sync`, the `lock_engaged` value for that slot will change from `true` to `false`.
+> **You must detect this `true -> false` transition and pulse the solenoid HIGH for 500ms to pop the door open.**
+
+**Example C++ Logic for Hardware Team:**
+```cpp
+// Previous state stored in memory
+bool previous_lock_engaged[num_slots];
+
+// Inside your parsing loop after fetching /sync:
+bool current_lock_engaged = slot_json["lock_engaged"];
+
+if (previous_lock_engaged[i] == true && current_lock_engaged == false) {
+    // Transition detected! The user entered their PIN.
+    pulseSolenoid(slot_number); 
+}
+
+// Update memory for next poll
+previous_lock_engaged[i] = current_lock_engaged;
+```
 
 ---
 
