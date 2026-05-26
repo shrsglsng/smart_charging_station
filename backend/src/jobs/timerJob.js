@@ -54,12 +54,12 @@ const expireChargingSessions = async () => {
   }
 };
 
-// Schedule the job to run every 60 seconds
-const timerJob = cron.schedule('*/1 * * * *', expireChargingSessions, {
+// Schedule the job to run every 10 seconds for better responsiveness
+const timerJob = cron.schedule('*/10 * * * * *', expireChargingSessions, {
   scheduled: true,
   timezone: "UTC"
 });
 
-logger.info('Timer job scheduled to run every 60 seconds for expiring charging sessions');
+logger.info('Timer job scheduled to run every 10 seconds for expiring charging sessions');
 
 module.exports = timerJob;

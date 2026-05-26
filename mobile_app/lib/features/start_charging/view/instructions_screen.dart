@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../bloc/start_charging_bloc.dart';
 import '../../../core/utils/toast_service.dart';
+import '../../../core/widgets/door_closure_dialog.dart';
+import '../../../core/widgets/thank_you_dialog.dart';
 
 class InstructionsScreen extends StatelessWidget {
   const InstructionsScreen({super.key});
@@ -10,18 +12,15 @@ class InstructionsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocListener<StartChargingBloc, StartChargingState>(
+      listenWhen: (prev, curr) => 
+          prev.isSlotAssigned != curr.isSlotAssigned || 
+          prev.isSuccess != curr.isSuccess || 
+          prev.error != curr.error,
       listener: (context, state) async {
-        if (state.isSuccess) {
-          // Success! Show toast and navigate home after delay
-          ToastService.showInfo(
-            context, 
-            'Success! Locker ${state.selectedSlotNumber} is now assigned.'
-          );
-          
-          await Future.delayed(const Duration(seconds: 2));
-          if (context.mounted) {
-            context.go('/');
-          }
+        if (state.isSlotAssigned && !state.isSuccess) {
+          // Slot assigned! Show the timer dialog
+          final bloc = context.read<StartChargingBloc>();
+          DoorClosureDialog.show(context, state.selectedSlotNumber ?? 0, bloc);
         }
         if (state.error != null) {
           ToastService.showError(context, state.error!);
@@ -86,29 +85,6 @@ class InstructionsScreen extends StatelessWidget {
                 },
               ),
               const SizedBox(height: 16),
-              BlocBuilder<StartChargingBloc, StartChargingState>(
-                builder: (context, state) {
-                  return SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: OutlinedButton(
-                      onPressed: state.isLoading 
-                          ? null 
-                          : () => context.read<StartChargingBloc>().add(AssignAndSimulateLock()),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.red.shade300),
-                        shape: const StadiumBorder(),
-                      ),
-                      child: state.isLoading 
-                          ? const CircularProgressIndicator(color: Colors.red)
-                          : Text(
-                              'SIMULATE DOOR LOCK (DEV ONLY)',
-                              style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold),
-                            ),
-                    ),
-                  );
-                },
-              ),
             ],
           ),
         ),
