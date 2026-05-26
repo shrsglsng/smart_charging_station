@@ -5,7 +5,7 @@ const extractMachineId = (req, res, next) => {
       error: 'Missing required header: x-machine-id'
     });
   }
-  req.machineId = machineId;
+  req.machineId = machineId.toUpperCase();
   next();
 };
 

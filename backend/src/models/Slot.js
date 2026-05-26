@@ -47,11 +47,14 @@ const slotSchema = new mongoose.Schema({
     type: String,
     enum: ['NORMAL', 'EARLY', 'OVERSTAY', null],
     default: null
+  },
+  is_closed: {
+    type: Boolean,
+    default: false
   }
-}, {
+  }, {
   timestamps: true
-});
-
+  });
 // Create compound index for fast lookups by machine and slot
 slotSchema.index({ machine_id: 1, slot_number: 1, status: 1 });
 

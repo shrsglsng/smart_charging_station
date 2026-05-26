@@ -18,8 +18,11 @@ class HardwareController {
 
       if (!slot) {
         logger.error(`Hardware reported state for non-existent slot ${slot_number} on machine ${machineId}`);
-        return res.status(404).json({ error: 'Slot not found' });
+        return res.status(404).json({ success: false, error: 'Slot not found' });
       }
+
+      // Update physical state in DB
+      slot.is_closed = is_closed;
 
       // Case 1: Session START (Door closed during PENDING)
       if (slot.status === 'PENDING' && is_closed) {
@@ -30,13 +33,14 @@ class HardwareController {
         await slot.save();
 
         logger.info(`Session STARTED: Slot ${slot.slot_number} on machine ${machineId} is now charging.`);
-        return res.json({ action: 'ENABLE_CHARGING', slot_number: slot.slot_number });
+        return res.json({ success: true, action: 'ENABLE_CHARGING', slot_number: slot.slot_number });
       }
 
       // Case 2: Unauthorized Closure (Door closed during AVAILABLE)
       if (slot.status === 'AVAILABLE' && is_closed) {
+        await slot.save();
         logger.warn(`SECURITY ALERT: Unauthorized closure detected on AVAILABLE slot ${slot_number} on machine ${machineId}. Triggering UNLOCK.`);
-        return res.json({ action: 'UNLOCK_DOOR', slot_number: slot.slot_number });
+        return res.json({ success: true, action: 'UNLOCK_DOOR', slot_number: slot.slot_number });
       }
 
       // Case 3: Manual Override / Forced Opening (Door opened during LOCKED state)
@@ -59,15 +63,19 @@ class HardwareController {
           machine_id: slot.machine_id,
           location: slot.location,
           slot_number: slot.slot_number,
-          status: 'AVAILABLE'
+          status: 'AVAILABLE',
+          is_closed: false
         });
 
         logger.info(`Slot ${slot.slot_number} on machine ${machineId} has been reset to AVAILABLE due to manual opening.`);
-        return res.json({ action: 'NONE', message: 'Manual override handled' });
+        return res.json({ success: true, action: 'NONE', message: 'Manual override handled' });
       }
 
+      // Save is_closed state for other transitions (like opening an empty door)
+      await slot.save();
+
       // For any other state (like AVAILABLE and staying open), do nothing
-      return res.json({ action: 'NONE' });
+      return res.json({ success: true, action: 'NONE' });
     } catch (error) {
       logger.error('Error in doorState:', error);
       res.status(500).json({ error: 'Internal server error' });

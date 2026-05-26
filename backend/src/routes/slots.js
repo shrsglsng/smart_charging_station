@@ -19,7 +19,8 @@ router.get('/state', async (req, res) => {
       slot_number: slot.slot_number,
       status: slot.status,
       user_phone: slot.user_phone,
-      charging_ends_at: slot.charging_ends_at
+      charging_ends_at: slot.charging_ends_at,
+      is_closed: slot.is_closed
     }));
     
     res.json(slotsState);
