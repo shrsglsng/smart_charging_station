@@ -1,6 +1,6 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <HTTPClient.h>
+#include <HTTPCli"{'?ent.h>
 #include <ArduinoJson.h>
 
 // --- Configuration ---
@@ -80,8 +80,8 @@ void loop() {
 void setHeaders(HTTPClient &http) {
     http.addHeader("Content-Type", "application/json");
     http.addHeader("x-machine-id", MACHINE_ID);
-    http.addHeader("Connection", "keep-alive"); // Changed to keep-alive for better performance
-    http.setTimeout(10000); // Increased timeout to 10s to avoid code -11
+    http.addHeader("Connection", "close"); // Force close to avoid socket exhaustion on hotspots
+    http.setTimeout(15000); // 15s timeout for mobile network latency
 }
 
 void handleMegaEvent(String event) {
