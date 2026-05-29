@@ -1,4 +1,5 @@
 const Slot = require('../models/Slot');
+const CompletedSession = require('../models/CompletedSession');
 const logger = require('../logger/logger');
 
 class AdminController {
@@ -18,8 +19,7 @@ class AdminController {
       const availableSlots = await Slot.countDocuments({ status: 'AVAILABLE' });
 
       // Usage distribution by machine
-      const usageByMachine = await Slot.aggregate([
-        { $match: { status: 'COMPLETED' } },
+      const usageByMachine = await CompletedSession.aggregate([
         { $group: { _id: '$machine_id', count: { $sum: 1 } } },
         { $project: { machine_id: '$_id', count: 1, _id: 0 } }
       ]);
@@ -42,7 +42,6 @@ class AdminController {
     try {
       // Get distinct machines with their locations and current slot counts
       const machines = await Slot.aggregate([
-        { $match: { status: { $ne: 'COMPLETED' } } },
         { $group: { 
             _id: '$machine_id', 
             location: { $first: '$location' },
@@ -115,13 +114,12 @@ class AdminController {
       }
 
       // Get COMPLETED records for history
-      const historyFilter = { ...filter, status: 'COMPLETED' };
-      const history = await Slot.find(historyFilter)
+      const history = await CompletedSession.find(filter)
         .sort({ collected_at: -1 })
         .skip(skip)
         .limit(parseInt(limit));
 
-      const total = await Slot.countDocuments(historyFilter);
+      const total = await CompletedSession.countDocuments(filter);
 
       const formattedHistory = history.map(s => ({
         id: s._id,
@@ -132,7 +130,7 @@ class AdminController {
         started_at: s.session_start,
         collected_at: s.collected_at,
         total_minutes: s.total_minutes,
-        status: s.status
+        status: 'COMPLETED'
       }));
 
       // Get ACTIVE records (Pending, Charging, Expired)
@@ -187,10 +185,11 @@ class AdminController {
 
       // 1. Update location for ALL slots of this machine (active and history)
       await Slot.updateMany({ machine_id: upperMachineId }, { location: upperLocation });
+      await CompletedSession.updateMany({ machine_id: upperMachineId }, { location: upperLocation });
 
       // 2. Adjust Slot Count
       // Get current max slot number for this machine
-      const currentActiveSlots = await Slot.find({ machine_id, status: { $ne: 'COMPLETED' } }).sort({ slot_number: -1 });
+      const currentActiveSlots = await Slot.find({ machine_id }).sort({ slot_number: -1 });
       const currentCount = currentActiveSlots.length > 0 ? currentActiveSlots[0].slot_number : 0;
       const newCount = parseInt(num_slots);
 

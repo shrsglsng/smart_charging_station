@@ -13,9 +13,6 @@ const EditMachineModal = ({ isOpen, onClose, machines, onUpdate }) => {
       const machine = machines.find(m => m.machine_id === selectedMachineId);
       if (machine) {
         setLocation(machine.location || '');
-        // We'll need to fetch the actual slot count from the machine data if not provided
-        // For now, we'll default it or let user enter it. 
-        // In a real app, machines list should include slotCount.
         setNumSlots(machine.slotCount || ''); 
       }
     } else {
@@ -43,39 +40,39 @@ const EditMachineModal = ({ isOpen, onClose, machines, onUpdate }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+      <div className="bg-card text-card-foreground w-full max-w-md rounded-lg shadow-xl overflow-hidden border border-border animate-in zoom-in-95 duration-300 transition-colors duration-300 font-sans">
         {/* Header */}
-        <div className="bg-slate-50 px-8 py-6 border-b border-slate-100 flex justify-between items-center">
+        <div className="bg-muted px-6 py-4 border-b border-border flex justify-between items-center text-foreground transition-colors duration-300">
           <div>
-            <h2 className="text-xl font-black text-slate-800 tracking-tight">Edit Machine</h2>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Update Existing Station</p>
+            <h2 className="text-lg font-black text-foreground tracking-tight">Edit Machine</h2>
+            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mt-1">Update Existing Station</p>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400"
+            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 rounded-md transition-colors cursor-pointer"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Machine Selection */}
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Machine</label>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-0.5">Select Machine</label>
             <div className="relative group">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#2596f1] transition-colors">
-                <Settings2 size={18} />
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/75 group-focus-within:text-primary transition-colors">
+                <Settings2 size={16} />
               </div>
               <select
                 required
                 value={selectedMachineId}
                 onChange={(e) => setSelectedMachineId(e.target.value)}
-                className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 text-slate-700 font-bold focus:border-[#2596f1]/20 focus:bg-white outline-none transition-all appearance-none"
+                className="w-full bg-background border border-input rounded-md py-2.5 pl-10 pr-4 text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-ring focus:border-input transition-all duration-300 appearance-none"
               >
-                <option value="">Choose a station...</option>
+                <option value="" className="dark:bg-slate-900 text-muted-foreground">Choose a station...</option>
                 {machines.map((m) => (
-                  <option key={m.machine_id} value={m.machine_id}>
+                  <option key={m.machine_id} value={m.machine_id} className="dark:bg-slate-900 text-foreground font-bold">
                     {m.machine_id} — {m.location}
                   </option>
                 ))}
@@ -85,12 +82,12 @@ const EditMachineModal = ({ isOpen, onClose, machines, onUpdate }) => {
 
           {/* Conditional Fields */}
           {selectedMachineId && (
-            <div className="space-y-6 animate-in slide-in-from-top-4 duration-300">
+            <div className="space-y-5 animate-in slide-in-from-top-4 duration-300">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">New Location</label>
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-0.5">New Location</label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#2596f1] transition-colors">
-                    <MapPin size={18} />
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/75 group-focus-within:text-primary transition-colors">
+                    <MapPin size={16} />
                   </div>
                   <input
                     required
@@ -98,16 +95,16 @@ const EditMachineModal = ({ isOpen, onClose, machines, onUpdate }) => {
                     placeholder="e.g. PHOENIX MALL, ENTRANCE A"
                     value={location}
                     onChange={(e) => setLocation(e.target.value.toUpperCase())}
-                    className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 text-slate-700 font-bold focus:border-[#2596f1]/20 focus:bg-white outline-none transition-all uppercase"
+                    className="w-full bg-background border border-input rounded-md py-2.5 pl-10 pr-4 text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-ring focus:border-input transition-all duration-300 uppercase"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Adjust Slot Count</label>
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-0.5">Adjust Slot Count</label>
                 <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#2596f1] transition-colors">
-                    <Layers size={18} />
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/75 group-focus-within:text-primary transition-colors">
+                    <Layers size={16} />
                   </div>
                   <input
                     required
@@ -116,10 +113,10 @@ const EditMachineModal = ({ isOpen, onClose, machines, onUpdate }) => {
                     placeholder="e.g. 12"
                     value={numSlots}
                     onChange={(e) => setNumSlots(e.target.value)}
-                    className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-12 pr-4 text-slate-700 font-bold focus:border-[#2596f1]/20 focus:bg-white outline-none transition-all"
+                    className="w-full bg-background border border-input rounded-md py-2.5 pl-10 pr-4 text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-ring focus:border-input transition-all duration-300"
                   />
                 </div>
-                <p className="text-[10px] text-slate-400 font-semibold px-2">
+                <p className="text-[10px] text-muted-foreground font-semibold px-1">
                   Increasing this will add new lockers. Decreasing will remove unused ones.
                 </p>
               </div>
@@ -127,7 +124,7 @@ const EditMachineModal = ({ isOpen, onClose, machines, onUpdate }) => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#2596f1] hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2 group disabled:opacity-70"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 rounded-md shadow-sm transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-70 cursor-pointer"
               >
                 {loading ? (
                   <Loader2 className="animate-spin" size={20} />

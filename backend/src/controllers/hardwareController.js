@@ -1,4 +1,5 @@
 const Slot = require('../models/Slot');
+const CompletedSession = require('../models/CompletedSession');
 const { validatePin } = require('../utils/pinValidator');
 const logger = require('../logger/logger');
 
@@ -9,11 +10,10 @@ class HardwareController {
     const machineId = req.machineId;
 
     try {
-      // Find the active/pending slot (Ignore history)
+      // Find the active/pending slot
       const slot = await Slot.findOne({ 
         machine_id: machineId, 
-        slot_number: slot_number,
-        status: { $ne: 'COMPLETED' }
+        slot_number: slot_number
       });
 
       if (!slot) {
@@ -43,24 +43,34 @@ class HardwareController {
       if ((slot.status === 'LOCKED_CHARGING' || slot.status === 'LOCKED_EXPIRED') && !is_closed) {
         logger.error(`MANUAL OVERRIDE: Door opened for slot ${slot_number} on machine ${machineId} without server command.`);
         
-        // 1. Complete the current session (Archive it)
-        slot.status = 'COMPLETED';
-        slot.collected_at = new Date();
-        // Calculate total time
+        const now = new Date();
+        let totalMinutes = 0;
         if (slot.session_start) {
           const start = new Date(slot.session_start);
-          const end = new Date();
-          slot.total_minutes = Math.floor((end - start) / 60000);
+          totalMinutes = Math.floor((now - start) / 60000);
         }
-        await slot.save();
 
-        // 2. Spawn a new AVAILABLE slot for this locker
-        await Slot.create({
+        // 1. Complete the current session (Archive it to CompletedSession)
+        await CompletedSession.create({
           machine_id: slot.machine_id,
           location: slot.location,
           slot_number: slot.slot_number,
-          status: 'AVAILABLE'
+          user_phone: slot.user_phone,
+          pin: slot.pin,
+          session_start: slot.session_start,
+          charging_ends_at: slot.charging_ends_at,
+          collected_at: now,
+          total_minutes: totalMinutes,
+          pickup_type: slot.status === 'LOCKED_EXPIRED' ? 'OVERSTAY' : (totalMinutes < 25 ? 'EARLY' : 'NORMAL')
         });
+
+        // 2. Reset existing Slot record to AVAILABLE in-place
+        slot.status = 'AVAILABLE';
+        slot.user_phone = null;
+        slot.pin = null;
+        slot.session_start = null;
+        slot.charging_ends_at = null;
+        await slot.save();
 
         logger.info(`Slot ${slot.slot_number} on machine ${machineId} has been reset to AVAILABLE due to manual opening.`);
         return res.json({ action: 'NONE', message: 'Manual override handled' });
@@ -79,10 +89,9 @@ class HardwareController {
     const machineId = req.machineId;
 
     try {
-      // Find all ACTIVE slots for this machine (exclude COMPLETED history), sorted by slot_number
+      // Find all ACTIVE slots for this machine, sorted by slot_number
       const slots = await Slot.find({ 
-        machine_id: machineId,
-        status: { $ne: 'COMPLETED' }
+        machine_id: machineId
       }).sort({ slot_number: 1 });
 
       logger.info(`Sync requested by machine ${machineId}. Returning state for ${slots.length} slots.`);

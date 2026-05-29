@@ -44,3 +44,7 @@ graphify-out/
 .agents/
 .vscode/
 .github/
+.kilo/
+.antigravitycli/
+.agents/
+AGENTS.md

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -192,6 +193,25 @@ class _DoorClosureDialogState extends State<DoorClosureDialog> {
             color: Colors.grey,
           ),
         ),
+        if (kDebugMode) ...[
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber.shade700,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            onPressed: () {
+              _bloc.add(SimulateDoorLockOnly());
+            },
+            icon: const Icon(Icons.developer_mode),
+            label: const Text(
+              'Simulate Door Lock (Dev Only)',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ],
     );
   }

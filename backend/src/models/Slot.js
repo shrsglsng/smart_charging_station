@@ -16,7 +16,7 @@ const slotSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['AVAILABLE', 'PENDING', 'LOCKED_CHARGING', 'LOCKED_EXPIRED', 'COMPLETED'],
+    enum: ['AVAILABLE', 'PENDING', 'LOCKED_CHARGING', 'LOCKED_EXPIRED'],
     default: 'AVAILABLE'
   },
   user_phone: {
@@ -33,19 +33,6 @@ const slotSchema = new mongoose.Schema({
   },
   charging_ends_at: {
     type: Date,
-    default: null
-  },
-  collected_at: {
-    type: Date,
-    default: null
-  },
-  total_minutes: {
-    type: Number,
-    default: null
-  },
-  pickup_type: {
-    type: String,
-    enum: ['NORMAL', 'EARLY', 'OVERSTAY', null],
     default: null
   }
 }, {

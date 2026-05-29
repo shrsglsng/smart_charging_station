@@ -1,10 +1,11 @@
 const Slot = require('../models/Slot');
+const CompletedSession = require('../models/CompletedSession');
 const { validatePin } = require('../utils/pinValidator');
 
 class SlotService {
   // Get all active slots for a machine
   async getSlotsByMachineId(machineId) {
-    return Slot.find({ machine_id: machineId, status: { $ne: 'COMPLETED' } }).sort({ slot_number: 1 });
+    return Slot.find({ machine_id: machineId }).sort({ slot_number: 1 });
   }
 
   // Assign a slot to a user (starts a session)
@@ -41,16 +42,15 @@ class SlotService {
 
     return slot;
   }
-  // Release a slot: mark current as COMPLETED and create new AVAILABLE record
+  // Release a slot: archive session to CompletedSession and reset slot to AVAILABLE in-place
   async releaseSlot(machineId, slotNumber) {
     // 1. Find the active slot record
     const activeSlot = await Slot.findOne({ 
       machine_id: machineId, 
-      slot_number: slotNumber,
-      status: { $ne: 'COMPLETED' }
+      slot_number: slotNumber
     });
     
-    if (!activeSlot) {
+    if (!activeSlot || activeSlot.status === 'AVAILABLE') {
       throw new Error('No active session found for this slot');
     }
 
@@ -70,22 +70,29 @@ class SlotService {
       }
     }
 
-    // 2. Mark current record as COMPLETED
-    activeSlot.status = 'COMPLETED';
-    activeSlot.collected_at = now;
-    activeSlot.total_minutes = totalMinutes;
-    activeSlot.pickup_type = pickupType;
-    await activeSlot.save();
-
-    // 3. Create a NEW AVAILABLE record for the next user
-    const newSlot = await Slot.create({
-      machine_id: machineId,
+    // 2. Write to CompletedSession collection
+    await CompletedSession.create({
+      machine_id: activeSlot.machine_id,
       location: activeSlot.location,
-      slot_number: slotNumber,
-      status: 'AVAILABLE'
+      slot_number: activeSlot.slot_number,
+      user_phone: activeSlot.user_phone,
+      pin: activeSlot.pin,
+      session_start: activeSlot.session_start,
+      charging_ends_at: activeSlot.charging_ends_at,
+      collected_at: now,
+      total_minutes: totalMinutes,
+      pickup_type: pickupType
     });
 
-    return newSlot;
+    // 3. Reset the existing Slot record to AVAILABLE in-place
+    activeSlot.status = 'AVAILABLE';
+    activeSlot.user_phone = null;
+    activeSlot.pin = null;
+    activeSlot.session_start = null;
+    activeSlot.charging_ends_at = null;
+    await activeSlot.save();
+
+    return activeSlot;
   }
 
   // Verify phone+slot and release: for "Forgot PIN" flow

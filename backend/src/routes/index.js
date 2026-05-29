@@ -7,10 +7,12 @@ const helpRoutes = require('./help');
 const hardwareRoutes = require('./hardware');
 const adminRoutes = require('./admin');
 const setupRoutes = require('./setup');
+const authRoutes = require('./auth');
 
 const extractMachineId = require('../middleware/extractMachineId');
 
 // Mount routes
+router.use('/auth', authRoutes);
 router.use('/setup', setupRoutes);
 router.use('/session', extractMachineId, sessionRoutes);
 router.use('/slots', extractMachineId, slotsRoutes);

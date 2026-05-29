@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
+const authMiddleware = require('../middleware/authMiddleware');
+
+// Apply JWT authentication middleware to all admin endpoints
+router.use(authMiddleware);
 
 // GET /api/v1/admin/stats
 router.get('/stats', adminController.getStats.bind(adminController));
