@@ -43,18 +43,28 @@ class AdminController {
   // GET /api/v1/admin/machines
   async getAllMachines(req, res) {
     try {
-      // Get distinct machines with their locations and current slot counts
-      const machines = await Slot.aggregate([
-        { $group: { 
-            _id: '$machine_id', 
-            location: { $first: '$location' },
-            slotCount: { $sum: 1 },
-            createdAt: { $first: '$createdAt' }
-          } 
-        },
-        { $project: { machine_id: '$_id', location: 1, slotCount: 1, createdAt: 1, _id: 0 } },
-        { $sort: { createdAt: -1 } }
-      ]);
+      // Get all machines from the Machine collection
+      const machinesList = await Machine.find().sort({ createdAt: -1 });
+
+      const machines = await Promise.all(machinesList.map(async (m) => {
+        const totalSlots = await Slot.countDocuments({ machine_id: m.machine_id });
+        const availableSlots = await Slot.countDocuments({ machine_id: m.machine_id, status: 'AVAILABLE' });
+        const bookedSlots = await Slot.countDocuments({ 
+          machine_id: m.machine_id, 
+          status: { $in: ['PENDING', 'LOCKED_CHARGING', 'LOCKED_EXPIRED'] } 
+        });
+
+        return {
+          machine_id: m.machine_id,
+          location: m.location,
+          password_plain: m.password_plain || '********', // Fallback if plain is missing
+          slotCount: totalSlots,
+          availableSlots,
+          bookedSlots,
+          createdAt: m.createdAt
+        };
+      }));
+
       res.json({ success: true, machines });
     } catch (error) {
       logger.error('Error fetching machines:', error);
@@ -98,6 +108,7 @@ class AdminController {
       await Machine.create({
         machine_id: upperMachineId,
         password: hashedPassword,
+        password_plain: machine_password,
         location: upperLocation
       });
 
@@ -211,6 +222,7 @@ class AdminController {
       const updateFields = { location: upperLocation };
       if (machine_password && machine_password.trim() !== '') {
         updateFields.password = await bcrypt.hash(machine_password, 10);
+        updateFields.password_plain = machine_password;
       }
       
       // Try to update machine profile, create if it didn't exist before (for backward compatibility)

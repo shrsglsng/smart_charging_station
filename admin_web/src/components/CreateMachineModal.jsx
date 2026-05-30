@@ -5,7 +5,7 @@ const CreateMachineModal = ({ isOpen, onClose, onSuccess, token }) => {
   const [formData, setFormData] = useState({
     machine_id: '',
     location: '',
-    num_slots: 10,
+    num_slots: 38,
     machine_password: ''
   });
   const [loading, setLoading] = useState(false);
@@ -37,7 +37,7 @@ const CreateMachineModal = ({ isOpen, onClose, onSuccess, token }) => {
       if (data.success) {
         onSuccess();
         onClose();
-        setFormData({ machine_id: '', location: '', num_slots: 10 });
+        setFormData({ machine_id: '', location: '', num_slots: 38 });
       } else {
         setError(data.message || 'Failed to create machine');
       }

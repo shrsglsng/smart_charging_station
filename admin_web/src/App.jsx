@@ -11,7 +11,9 @@ const App = () => {
   const [email, setEmail] = useState(localStorage.getItem('admin_email') || '');
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const [machines, setMachines] = useState([]);
-  const [selectedMachine, setSelectedMachine] = useState('ALL MACHINES');
+  const [selectedMachine, setSelectedMachine] = useState(
+    localStorage.getItem('selected_machine') || 'ALL MACHINES'
+  );
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,6 +29,11 @@ const App = () => {
     }
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Persist selected machine across page refreshes
+  useEffect(() => {
+    localStorage.setItem('selected_machine', selectedMachine);
+  }, [selectedMachine]);
 
   // Authenticated fetch wrapper to automatically attach JWT and handle 401s
   const authenticatedFetch = async (url, options = {}) => {

@@ -58,7 +58,7 @@ const EditMachineModal = ({ isOpen, onClose, machines, onUpdate, onDelete }) => 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-      <div className="bg-card text-card-foreground w-full max-w-md rounded-lg shadow-xl overflow-hidden border border-border animate-in zoom-in-95 duration-300 transition-colors duration-300 font-sans">
+      <div className="bg-card text-card-foreground w-full max-w-md max-h-[90vh] rounded-lg shadow-xl flex flex-col border border-border animate-in zoom-in-95 duration-300 transition-colors duration-300 font-sans">
         {/* Header */}
         <div className="bg-muted px-6 py-4 border-b border-border flex justify-between items-center text-foreground transition-colors duration-300">
           <div>
@@ -73,7 +73,7 @@ const EditMachineModal = ({ isOpen, onClose, machines, onUpdate, onDelete }) => 
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto flex-1 no-scrollbar">
           {/* Machine Selection */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-0.5">Select Machine</label>

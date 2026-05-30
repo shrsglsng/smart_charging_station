@@ -18,6 +18,18 @@ const dbOptions = {
 mongoose.connect(process.env.MONGO_URI, dbOptions)
   .then(() => {
     logger.info('Connected to MongoDB Atlas successfully with optimized connection pooling.');
+    
+    // Auto-migrate any existing machines that lack password_plain
+    const Machine = require('./models/Machine');
+    Machine.updateMany(
+      { password_plain: { $exists: false } },
+      { $set: { password_plain: 'kioskpass123' } }
+    ).then((res) => {
+      if (res.modifiedCount > 0) {
+        logger.info(`Database Migration: Backfilled password_plain for ${res.modifiedCount} legacy machine profiles.`);
+      }
+    }).catch(err => logger.error('Machine migration failed:', err));
+
     server.listen(PORT, () => {
       logger.info(`Server is running on port ${PORT}`);
     });

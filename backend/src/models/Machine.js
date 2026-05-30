@@ -13,6 +13,10 @@ const machineSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  password_plain: {
+    type: String,
+    required: false
+  },
   location: {
     type: String,
     required: true,

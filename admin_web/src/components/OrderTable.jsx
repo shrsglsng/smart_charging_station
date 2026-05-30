@@ -100,7 +100,9 @@ const OrderTable = ({ data, loading, onReset, onDeleteHistory }) => {
         {data.map((row, i) => (
           <div
             key={i}
-            className="grid grid-cols-8 items-center px-8 py-4 hover:bg-muted/30 border-b border-border/40 transition-colors duration-200 group text-foreground"
+            className={`grid grid-cols-8 items-center px-8 py-4 hover:bg-muted/30 border-b border-border/40 transition-colors duration-200 group text-foreground ${
+              i % 2 === 0 ? 'bg-card' : 'bg-muted/15 dark:bg-slate-900/30'
+            }`}
           >
             <div className="flex items-center gap-3">
               <span className="text-foreground font-bold text-sm">{row.user_phone}</span>
