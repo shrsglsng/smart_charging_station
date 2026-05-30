@@ -1,7 +1,7 @@
 import React from 'react';
 import { Smartphone, Clock, CheckCircle, AlertCircle, Trash2 } from 'lucide-react';
 
-const OrderTable = ({ data, loading, onReset }) => {
+const OrderTable = ({ data, loading, onReset, onDeleteHistory }) => {
   const formatDuration = (mins) => {
     if (mins === null || mins === undefined) return '—';
     if (mins < 60) return `${mins}m`;
@@ -15,17 +15,13 @@ const OrderTable = ({ data, loading, onReset }) => {
 
   const handleReset = async (id) => {
     if (window.confirm('Are you sure you want to reset this pending session? User data will be cleared and slot will become AVAILABLE.')) {
-      try {
-        const res = await fetch(`/api/v1/admin/sessions/${id}/reset`, { method: 'POST' });
-        const data = await res.json();
-        if (data.success) {
-          onReset(); // Trigger refresh
-        } else {
-          alert(data.message);
-        }
-      } catch (err) {
-        alert('Failed to reset session');
-      }
+      await onReset(id);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this completed session record from the database permanently?')) {
+      await onDeleteHistory(id);
     }
   };
 
@@ -144,12 +140,21 @@ const OrderTable = ({ data, loading, onReset }) => {
               </span>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
               {row.status === 'PENDING' && (
                 <button
                   onClick={() => handleReset(row.id)}
                   className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-all duration-300 active:scale-95 cursor-pointer"
                   title="Reset Pending Slot"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+              {row.status === 'COMPLETED' && (
+                <button
+                  onClick={() => handleDelete(row.id)}
+                  className="p-2 bg-destructive hover:bg-destructive/90 text-white rounded-md transition-all duration-300 active:scale-95 cursor-pointer flex items-center justify-center"
+                  title="Delete Completed Session History"
                 >
                   <Trash2 size={16} />
                 </button>

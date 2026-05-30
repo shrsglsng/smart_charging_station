@@ -31,8 +31,14 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
 
   void _autoGeneratePin() {
     AppLogger.debug('ACTION: Auto-generating PIN');
-    final random = Random();
-    final pin = (random.nextInt(9000) + 1000).toString();
+    final random = Random.secure();
+    String pin;
+    
+    // Keep generating PINs until a cryptographically secure, non-repetitive, non-sequential one is produced
+    do {
+      pin = (random.nextInt(9000) + 1000).toString();
+    } while (!ValidationUtil.isPinSecure(pin).isValid);
+
     _pinController.text = pin;
   }
 

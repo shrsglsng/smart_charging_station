@@ -24,4 +24,10 @@ router.put('/machines/:machine_id', adminController.updateMachine.bind(adminCont
 // POST /api/v1/admin/sessions/:id/reset
 router.post('/sessions/:id/reset', adminController.resetSession.bind(adminController));
 
+// DELETE /api/v1/admin/machines/:machine_id
+router.delete('/machines/:machine_id', adminController.deleteMachine.bind(adminController));
+
+// DELETE /api/v1/admin/sessions/:id
+router.delete('/sessions/:id', adminController.deleteHistory.bind(adminController));
+
 module.exports = router;

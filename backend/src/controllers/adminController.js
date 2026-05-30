@@ -1,5 +1,8 @@
 const Slot = require('../models/Slot');
 const CompletedSession = require('../models/CompletedSession');
+const Machine = require('../models/Machine');
+const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 const logger = require('../logger/logger');
 
 class AdminController {
@@ -62,30 +65,45 @@ class AdminController {
   // POST /api/v1/admin/machines
   async createMachine(req, res) {
     try {
-      const { machine_id, location, num_slots } = req.body;
+      const { machine_id, location, num_slots, machine_password } = req.body;
 
-      if (!machine_id || !location || !num_slots) {
-        return res.status(400).json({ success: false, message: 'Missing required fields' });
+      if (!machine_id || !location || !num_slots || !machine_password) {
+        return res.status(400).json({ success: false, message: 'Missing required fields: machine_id, location, num_slots, and machine_password are required' });
       }
 
-      // Enforce format: 1 Alphabet + 2 Numbers (01-99)
-      const idRegex = /^[A-Z](0[1-9]|[1-9][0-9])$/;
+      // Enforce slot count bounds (Vulnerability #15)
+      const parsedSlots = parseInt(num_slots);
+      if (isNaN(parsedSlots) || parsedSlots <= 0 || parsedSlots > 50) {
+        return res.status(400).json({ success: false, message: 'Number of slots must be between 1 and 50' });
+      }
+
+      // Enforce format strictly: Must start with C + 2 Numbers (01-99)
+      const idRegex = /^C(0[1-9]|[1-9][0-9])$/;
       const upperMachineId = machine_id.toUpperCase();
       const upperLocation = location.toUpperCase();
 
       if (!idRegex.test(upperMachineId)) {
-        return res.status(400).json({ success: false, message: 'Invalid Machine ID format. Must be 1 Alphabet + 2 Numbers (01-99), e.g., A01' });
+        return res.status(400).json({ success: false, message: 'Invalid Machine ID format. Must start with capital C followed by 2 numbers (01-99), e.g., C01' });
       }
 
-      // Check if machine already exists
-      const existing = await Slot.findOne({ machine_id: upperMachineId });
-      if (existing) {
+      // Check if machine already exists in either slots or machine profile
+      const existingSlot = await Slot.findOne({ machine_id: upperMachineId });
+      const existingMachine = await Machine.findOne({ machine_id: upperMachineId });
+      if (existingSlot || existingMachine) {
         return res.status(400).json({ success: false, message: 'Machine ID already exists' });
       }
 
+      // Create the Machine Profile with secure password hashing
+      const hashedPassword = await bcrypt.hash(machine_password, 10);
+      await Machine.create({
+        machine_id: upperMachineId,
+        password: hashedPassword,
+        location: upperLocation
+      });
+
       // Create Slots (Initial AVAILABLE records)
       const slotPromises = [];
-      for (let i = 1; i <= parseInt(num_slots); i++) {
+      for (let i = 1; i <= parsedSlots; i++) {
         slotPromises.push(Slot.create({
           machine_id: upperMachineId,
           location: upperLocation,
@@ -95,7 +113,7 @@ class AdminController {
       }
       await Promise.all(slotPromises);
 
-      res.status(201).json({ success: true, message: 'Machine and slots created successfully' });
+      res.status(201).json({ success: true, message: 'Machine profile and slots created successfully' });
     } catch (error) {
       logger.error('Error creating machine:', error);
       res.status(500).json({ success: false, message: 'Internal server error' });
@@ -174,46 +192,64 @@ class AdminController {
   async updateMachine(req, res) {
     try {
       const { machine_id } = req.params;
-      const { location, num_slots } = req.body;
+      const { location, num_slots, machine_password } = req.body;
 
       if (!location || !num_slots) {
         return res.status(400).json({ success: false, message: 'Location and Slot Count are required' });
       }
 
+      // Enforce slot count bounds (Vulnerability #15)
+      const newCount = parseInt(num_slots);
+      if (isNaN(newCount) || newCount <= 0 || newCount > 50) {
+        return res.status(400).json({ success: false, message: 'Number of slots must be between 1 and 50' });
+      }
+
       const upperLocation = location.toUpperCase();
       const upperMachineId = machine_id.toUpperCase();
 
-      // 1. Update location for ALL slots of this machine (active and history)
+      // 1. Sync Machine collection details
+      const updateFields = { location: upperLocation };
+      if (machine_password && machine_password.trim() !== '') {
+        updateFields.password = await bcrypt.hash(machine_password, 10);
+      }
+      
+      // Try to update machine profile, create if it didn't exist before (for backward compatibility)
+      await Machine.findOneAndUpdate(
+        { machine_id: upperMachineId },
+        { $set: updateFields },
+        { upsert: true, new: true }
+      );
+
+      // 2. Update location for ALL slots of this machine (active and history)
       await Slot.updateMany({ machine_id: upperMachineId }, { location: upperLocation });
       await CompletedSession.updateMany({ machine_id: upperMachineId }, { location: upperLocation });
 
-      // 2. Adjust Slot Count
+      // 3. Adjust Slot Count
       // Get current max slot number for this machine
-      const currentActiveSlots = await Slot.find({ machine_id }).sort({ slot_number: -1 });
+      const currentActiveSlots = await Slot.find({ machine_id: upperMachineId }).sort({ slot_number: -1 });
       const currentCount = currentActiveSlots.length > 0 ? currentActiveSlots[0].slot_number : 0;
-      const newCount = parseInt(num_slots);
 
       if (newCount > currentCount) {
         // Add new slots
         const slotPromises = [];
         for (let i = currentCount + 1; i <= newCount; i++) {
           slotPromises.push(Slot.create({
-            machine_id,
-            location,
+            machine_id: upperMachineId,
+            location: upperLocation,
             slot_number: i,
             status: 'AVAILABLE'
           }));
         }
         await Promise.all(slotPromises);
-        logger.info(`Machine ${machine_id} scaled up: ${currentCount} -> ${newCount}`);
+        logger.info(`Machine ${upperMachineId} scaled up: ${currentCount} -> ${newCount}`);
       } else if (newCount < currentCount) {
         // Scale down: Remove AVAILABLE placeholders for slots > newCount
         const result = await Slot.deleteMany({
-          machine_id,
+          machine_id: upperMachineId,
           slot_number: { $gt: newCount },
           status: 'AVAILABLE'
         });
-        logger.info(`Machine ${machine_id} scaled down. Removed ${result.deletedCount} available slots.`);
+        logger.info(`Machine ${upperMachineId} scaled down. Removed ${result.deletedCount} available slots.`);
       }
 
       res.json({ success: true, message: 'Machine updated successfully' });
@@ -250,6 +286,70 @@ class AdminController {
       res.json({ success: true, message: 'Session reset successfully' });
     } catch (error) {
       logger.error('Error resetting session:', error);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  }
+
+  // DELETE /api/v1/admin/machines/:machine_id
+  async deleteMachine(req, res) {
+    try {
+      const { machine_id } = req.params;
+      const { admin_password } = req.body;
+
+      if (!admin_password) {
+        return res.status(400).json({ success: false, message: 'Admin password is required to perform deletion' });
+      }
+
+      // 1. Verify currently logged-in Admin's password
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'Unauthorized action' });
+      }
+
+      const adminUser = await User.findById(req.user.id);
+      if (!adminUser) {
+        return res.status(404).json({ success: false, message: 'Admin user not found' });
+      }
+
+      const isMatch = await bcrypt.compare(admin_password, adminUser.password);
+      if (!isMatch) {
+        return res.status(401).json({ success: false, message: 'Incorrect admin password. Deletion denied.' });
+      }
+
+      const upperMachineId = machine_id.toUpperCase();
+
+      // 2. Delete Machine profile from Machine collection
+      await Machine.findOneAndDelete({ machine_id: upperMachineId });
+
+      // 3. Delete all Slots from Slot collection
+      const deletedSlots = await Slot.deleteMany({ machine_id: upperMachineId });
+
+      logger.info(`Machine DELETED: Kiosk ${upperMachineId} was deleted by Admin ${adminUser.email}. Removed slots: ${deletedSlots.deletedCount}`);
+
+      res.json({ 
+        success: true, 
+        message: `Machine ${upperMachineId} and all associated slots have been deleted successfully.`,
+        deletedCount: deletedSlots.deletedCount
+      });
+    } catch (error) {
+      logger.error('Error deleting machine:', error);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  }
+
+  // DELETE /api/v1/admin/sessions/:id
+  async deleteHistory(req, res) {
+    try {
+      const { id } = req.params;
+
+      const deletedSession = await CompletedSession.findByIdAndDelete(id);
+      if (!deletedSession) {
+        return res.status(404).json({ success: false, message: 'Session history not found' });
+      }
+
+      logger.info(`Session History DELETED: Completed session ${id} for machine ${deletedSession.machine_id} was deleted by Admin.`);
+      res.json({ success: true, message: 'Completed session history deleted successfully' });
+    } catch (error) {
+      logger.error('Error deleting session history:', error);
       res.status(500).json({ success: false, message: 'Internal server error' });
     }
   }

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { validatePin } = require('../utils/pinValidator');
 const slotService = require('../services/slotService');
+const logger = require('../logger/logger');
 
 // GET /api/v1/slots/state
 router.get('/state', async (req, res) => {
@@ -14,17 +15,16 @@ router.get('/state', async (req, res) => {
   try {
     const slots = await slotService.getSlotsByMachineId(machineId);
     
-    // Return the complete list of slots and their statuses
+    // Return slots without raw customer phone numbers to prevent PII exposure (Vulnerability #30)
     const slotsState = slots.map(slot => ({
       slot_number: slot.slot_number,
       status: slot.status,
-      user_phone: slot.user_phone,
       charging_ends_at: slot.charging_ends_at
     }));
     
     res.json(slotsState);
   } catch (error) {
-    console.error('Error in slots state:', error);
+    logger.error('Error in slots state:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -35,9 +35,10 @@ router.post('/assign', async (req, res) => {
   const machineId = req.machineId;
 
   try {
-    // Validate PIN
-    if (!validatePin(pin)) {
-      return res.status(400).json({ error: 'Invalid PIN' });
+    // Validate PIN (Vulnerability #3 Check Corrected)
+    const pinResult = validatePin(pin);
+    if (!pinResult.isValid) {
+      return res.status(400).json({ error: pinResult.reason });
     }
 
     // Update the specific slot: set status to PENDING, update user_phone and pin
@@ -45,7 +46,7 @@ router.post('/assign', async (req, res) => {
 
     res.json({ success: true, slot: updatedSlot });
   } catch (error) {
-    console.error('Error in slots assign:', error);
+    logger.error('Error in slots assign:', error);
     if (error.message === 'Invalid PIN') {
       return res.status(400).json({ error: 'Invalid PIN' });
     }

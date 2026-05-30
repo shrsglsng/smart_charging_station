@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { X, Cpu, MapPin, Hash, Check } from 'lucide-react';
+import { X, Cpu, MapPin, Hash, Check, Key } from 'lucide-react';
 
 const CreateMachineModal = ({ isOpen, onClose, onSuccess, token }) => {
   const [formData, setFormData] = useState({
     machine_id: '',
     location: '',
-    num_slots: 10
+    num_slots: 10,
+    machine_password: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -14,6 +15,13 @@ const CreateMachineModal = ({ isOpen, onClose, onSuccess, token }) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    // Enforce format: C + 2 numbers (01-99)
+    if (!/^C(0[1-9]|[1-9][0-9])$/.test(formData.machine_id)) {
+      setError('Machine ID must be capital C followed by a 2-digit number from 01 to 99 (e.g. C01).');
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch('/api/v1/admin/machines', {
@@ -73,25 +81,30 @@ const CreateMachineModal = ({ isOpen, onClose, onSuccess, token }) => {
             <div>
               <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-0.5 mb-1.5 block flex justify-between">
                 <span>Machine Identifier</span>
-                <span className="text-primary lowercase font-bold tracking-normal italic">(Format: A01-Z99)</span>
+                <span className="text-primary lowercase font-bold tracking-normal italic">(Format: C01-C99)</span>
               </label>
-              <div className="relative group">
+              <div className="relative group flex items-center">
                 <Cpu size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/75 group-focus-within:text-primary transition-colors" />
+                <span className="absolute left-10 font-bold text-foreground pointer-events-none select-none text-sm">C</span>
                 <input
                   required
                   type="text"
-                  maxLength={3}
-                  placeholder="e.g. A01"
-                  value={formData.machine_id}
+                  maxLength={2}
+                  placeholder="01"
+                  value={formData.machine_id ? formData.machine_id.substring(1) : ''}
                   onChange={(e) => {
-                    const val = e.target.value.toUpperCase();
-                    if (val === '' || /^[A-Z]?[0-9]{0,2}$/.test(val)) {
-                      setFormData({ ...formData, machine_id: val });
+                    const val = e.target.value;
+                    // Enforce digits only and maximum 2 characters
+                    if (val === '' || /^[0-9]{0,2}$/.test(val)) {
+                      setFormData({ ...formData, machine_id: val ? `C${val}` : '' });
                     }
                   }}
-                  className="w-full bg-background border border-input rounded-md pl-10 pr-4 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-input transition-all duration-300"
+                  className="w-full bg-background border border-input rounded-md pl-14 pr-4 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-input transition-all duration-300"
                 />
               </div>
+              <p className="text-[10px] text-muted-foreground font-semibold mt-1.5 ml-0.5">
+                Preview: <span className="text-primary font-black">{formData.machine_id || 'C--'}</span>
+              </p>
             </div>
 
             {/* Location */}
@@ -108,6 +121,24 @@ const CreateMachineModal = ({ isOpen, onClose, onSuccess, token }) => {
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value.toUpperCase() })}
                   className="w-full bg-background border border-input rounded-md pl-10 pr-4 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-input transition-all duration-300 uppercase"
+                />
+              </div>
+            </div>
+
+            {/* Machine Password */}
+            <div>
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-0.5 mb-1.5 block">
+                Machine Password
+              </label>
+              <div className="relative group">
+                <Key size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/75 group-focus-within:text-primary transition-colors" />
+                <input
+                  required
+                  type="password"
+                  placeholder="Password for ESP32/kiosk connection"
+                  value={formData.machine_password}
+                  onChange={(e) => setFormData({ ...formData, machine_password: e.target.value })}
+                  className="w-full bg-background border border-input rounded-md pl-10 pr-4 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-input transition-all duration-300"
                 />
               </div>
             </div>

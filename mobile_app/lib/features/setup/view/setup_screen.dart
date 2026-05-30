@@ -19,6 +19,7 @@ class _SetupScreenState extends State<SetupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _machineIdController = TextEditingController();
   final _locationController = TextEditingController();
+  final _machinePasswordController = TextEditingController();
   final _adminPassController = TextEditingController();
   final _confirmPassController = TextEditingController();
   bool _isLoading = false;
@@ -30,28 +31,40 @@ class _SetupScreenState extends State<SetupScreen> {
       });
       AppLogger.info('ACTION: Saving machine configuration');
       
+      final prefs = sl<SharedPreferences>();
+      
       try {
         final machineId = _machineIdController.text.trim().toUpperCase();
+        final machinePassword = _machinePasswordController.text.trim();
         final adminPass = _adminPassController.text.trim();
+
+        // Save locally first so the Interceptor can inject x-machine-id and x-machine-password headers on the registration request
+        await prefs.setString('machine_id', machineId);
+        await prefs.setString('machine_password', machinePassword);
+        await prefs.setString('admin_pass', adminPass);
 
         // Register with backend first
         final setupRepo = sl<SetupRepository>();
         final success = await setupRepo.registerStation(machineId, ""); // Location not needed from client
 
         if (success) {
-          // Save locally
-          final prefs = sl<SharedPreferences>();
-          await prefs.setString('machine_id', machineId);
-          await prefs.setString('admin_pass', adminPass);
-
           AppLogger.info('ACTION: Configuration saved successfully');
           if (mounted) {
             context.go('/');
           }
         } else {
+          // Revert if registration failed
+          await prefs.remove('machine_id');
+          await prefs.remove('machine_password');
+          await prefs.remove('admin_pass');
           _showError('Failed to register station with server.');
         }
       } on DioException catch (e) {
+        // Revert local save on failure
+        await prefs.remove('machine_id');
+        await prefs.remove('machine_password');
+        await prefs.remove('admin_pass');
+        
         String errorMsg = 'Connection error while registering setup.';
         if (e.response?.data != null && e.response?.data['message'] != null) {
           errorMsg = e.response?.data['message'];
@@ -59,6 +72,10 @@ class _SetupScreenState extends State<SetupScreen> {
         AppLogger.error('Setup failed: $errorMsg');
         _showError(errorMsg);
       } catch (e) {
+        await prefs.remove('machine_id');
+        await prefs.remove('machine_password');
+        await prefs.remove('admin_pass');
+        
         AppLogger.error('Setup failed: $e');
         _showError('An unexpected error occurred.');
       } finally {
@@ -80,6 +97,7 @@ class _SetupScreenState extends State<SetupScreen> {
   void dispose() {
     _machineIdController.dispose();
     _locationController.dispose();
+    _machinePasswordController.dispose();
     _adminPassController.dispose();
     _confirmPassController.dispose();
     super.dispose();
@@ -136,17 +154,34 @@ class _SetupScreenState extends State<SetupScreen> {
                       LengthLimitingTextInputFormatter(3),
                     ],
                     decoration: const InputDecoration(
-                      labelText: 'Machine ID (e.g. A01)',
+                      labelText: 'Machine ID (e.g. C01)',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.settings_remote),
-                      hintText: 'A01 - Z99',
+                      hintText: 'C01 - C99',
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter Machine ID';
                       }
-                      if (!RegExp(r'^[A-Z][0-9]{2}$').hasMatch(value)) {
-                        return 'Invalid format. Use 1 Letter + 2 Numbers (e.g. A01)';
+                      if (!RegExp(r'^C[0-9]{2}$').hasMatch(value)) {
+                        return 'Invalid format. Must start with C followed by 2 numbers (e.g. C01)';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _machinePasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Machine Backend Password',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.key),
+                      hintText: 'Password set in Admin Dashboard',
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter Machine Backend Password';
                       }
                       return null;
                     },

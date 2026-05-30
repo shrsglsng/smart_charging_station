@@ -9,21 +9,21 @@ const logger = require('../logger/logger');
 const expireChargingSessions = async () => {
   try {
     const now = new Date();
-    
+
     // Find all slots where status is LOCKED_CHARGING and charging_ends_at < now
     const expiredSlots = await Slot.find({
       status: 'LOCKED_CHARGING',
       charging_ends_at: { $lt: now }
     });
-    
+
     // Update each expired slot to LOCKED_EXPIRED
     for (const slot of expiredSlots) {
       slot.status = 'LOCKED_EXPIRED';
       await slot.save();
-      
+
       logger.info(`Slot ${slot.slot_number} on machine ${slot.machine_id} expired and set to LOCKED_EXPIRED`);
     }
-    
+
     if (expiredSlots.length > 0) {
       logger.info(`Expired ${expiredSlots.length} charging sessions`);
     }
@@ -31,9 +31,9 @@ const expireChargingSessions = async () => {
     // --- NEW: Cleanup Stale PENDING Slots (Strictly only PENDING) ---
     const staleTime = new Date(now.getTime() - 60 * 1000); // 60 seconds ago
     const staleResult = await Slot.updateMany(
-      { 
-        status: 'PENDING', 
-        updatedAt: { $lt: staleTime } 
+      {
+        status: 'PENDING',
+        updatedAt: { $lt: staleTime }
       },
       {
         $set: {

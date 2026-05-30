@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { validatePin } = require('../utils/pinValidator');
 const slotService = require('../services/slotService');
+const logger = require('../logger/logger');
 
 // POST /api/v1/session/start
 router.post('/start', async (req, res) => {
@@ -28,7 +29,7 @@ router.post('/start', async (req, res) => {
     // Success - validation passed and no active session
     res.json({ success: true });
   } catch (error) {
-    console.error('Error in session start:', error);
+    logger.error('Error in session start:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
@@ -43,9 +44,10 @@ router.post('/retrieve', async (req, res) => {
     const activeSession = await slotService.findActiveSessionByPhoneAndMachine(phone_number, machineId);
 
     if (!activeSession) {
-      return res.status(404).json({
+      // Uniform error message (Vulnerability #29 Fix)
+      return res.status(400).json({
         success: false,
-        message: 'No active session found for this mobile number.'
+        message: 'Invalid phone number or PIN entered.'
       });
     }
 
@@ -53,9 +55,10 @@ router.post('/retrieve', async (req, res) => {
     const slot = await slotService.findSlotForRetrieval(phone_number, pin, machineId);
 
     if (!slot) {
+      // Uniform error message (Vulnerability #29 Fix)
       return res.status(400).json({
         success: false,
-        message: "Invalid PIN or PIN doesn't match the mobile number."
+        message: 'Invalid phone number or PIN entered.'
       });
     }
 
@@ -64,7 +67,7 @@ router.post('/retrieve', async (req, res) => {
 
     res.json({ success: true, slot_number: updatedSlot.slot_number });
   } catch (error) {
-    console.error('Error in session retrieve:', error);
+    logger.error('Error in session retrieve:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
@@ -89,7 +92,7 @@ router.post('/recover-unlock', async (req, res) => {
     const updatedSlot = await slotService.verifyAndReleaseSlot(machineId, phone_number, parseInt(slot_number));
     res.json({ success: true, slot_number: updatedSlot.slot_number });
   } catch (error) {
-    console.error('Error in session recover-unlock:', error);
+    logger.error('Error in session recover-unlock:', error);
     if (error.message === 'No matching session found for this phone and locker') {
       return res.status(400).json({
         success: false,

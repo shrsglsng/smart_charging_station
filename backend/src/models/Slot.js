@@ -42,4 +42,9 @@ const slotSchema = new mongoose.Schema({
 // Create compound index for fast lookups by machine and slot
 slotSchema.index({ machine_id: 1, slot_number: 1, status: 1 });
 
+// Optimize query performance for background cron jobs and state polling
+slotSchema.index({ status: 1 });
+slotSchema.index({ status: 1, updatedAt: 1 });
+slotSchema.index({ status: 1, charging_ends_at: 1 });
+
 module.exports = mongoose.model('Slot', slotSchema);

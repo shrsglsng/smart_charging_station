@@ -26,9 +26,14 @@ Future<void> initInjection() async {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          final machineId = sl<SharedPreferences>().getString('machine_id');
+          final prefs = sl<SharedPreferences>();
+          final machineId = prefs.getString('machine_id');
+          final machinePassword = prefs.getString('machine_password');
           if (machineId != null) {
             options.headers['x-machine-id'] = machineId;
+          }
+          if (machinePassword != null) {
+            options.headers['x-machine-password'] = machinePassword;
           }
           return handler.next(options);
         },

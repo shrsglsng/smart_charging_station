@@ -11,9 +11,9 @@ class SlotService {
   // Assign a slot to a user (starts a session)
   async assignSlot(machineId, slotNumber, phoneNumber, pin) {
     const now = new Date();
-    const staleTime = new Date(now.getTime() - 3 * 60 * 1000); // 3 minutes ago
+    const staleTime = new Date(now.getTime() - 60 * 1000); // 60 seconds ago
 
-    // Try to find an AVAILABLE slot OR a PENDING slot that hasn't moved in 3 minutes
+    // Try to find an AVAILABLE slot OR a PENDING slot that hasn't moved in 60 seconds
     const slot = await Slot.findOneAndUpdate(
       { 
         machine_id: machineId, 

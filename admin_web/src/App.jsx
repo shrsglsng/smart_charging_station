@@ -88,6 +88,75 @@ const App = () => {
     }
   };
 
+  const handleDeleteMachine = async (machineId, adminPassword) => {
+    try {
+      const res = await authenticatedFetch(`/api/v1/admin/machines/${machineId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_password: adminPassword }),
+      });
+      if (!res) return false;
+      const data = await res.json();
+      if (data.success) {
+        await fetchMachines();
+        if (selectedMachine === machineId) {
+          setSelectedMachine('ALL MACHINES');
+        }
+        alert(data.message);
+        return true;
+      } else {
+        alert(data.message || 'Deletion failed');
+        return false;
+      }
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert('Network error. Please try again.');
+      return false;
+    }
+  };
+
+  const handleResetSession = async (id) => {
+    try {
+      const res = await authenticatedFetch(`/api/v1/admin/sessions/${id}/reset`, {
+        method: 'POST'
+      });
+      if (!res) return false;
+      const data = await res.json();
+      if (data.success) {
+        await fetchSessions(selectedMachine);
+        return true;
+      } else {
+        alert(data.message || 'Reset failed');
+        return false;
+      }
+    } catch (err) {
+      console.error('Reset failed:', err);
+      alert('Network error');
+      return false;
+    }
+  };
+
+  const handleDeleteHistory = async (id) => {
+    try {
+      const res = await authenticatedFetch(`/api/v1/admin/sessions/${id}`, {
+        method: 'DELETE'
+      });
+      if (!res) return false;
+      const data = await res.json();
+      if (data.success) {
+        await fetchSessions(selectedMachine);
+        return true;
+      } else {
+        alert(data.message || 'Deletion failed');
+        return false;
+      }
+    } catch (err) {
+      console.error('Delete history failed:', err);
+      alert('Network error');
+      return false;
+    }
+  };
+
   // Fetch session history for selected machine
   const fetchSessions = async (machineId) => {
     if (!token) return;
@@ -154,12 +223,13 @@ const App = () => {
         onSelect={setSelectedMachine} 
       />
 
-      <main className="flex-1 min-h-0 flex flex-col px-8 pb-8">
-        <div className="bg-white dark:bg-slate-950/40 rounded-[2rem] shadow-xl shadow-slate-100 dark:shadow-none flex-1 flex flex-col overflow-hidden border border-slate-50 dark:border-slate-800/80">
+      <main className="flex-1 min-h-0 flex flex-col px-0 pb-0">
+        <div className="bg-white dark:bg-slate-950/40 rounded-none shadow-xl shadow-slate-100 dark:shadow-none flex-1 flex flex-col overflow-hidden border border-slate-50 dark:border-slate-800/80">
           <OrderTable 
             data={sessions} 
             loading={loading} 
-            onReset={() => fetchSessions(selectedMachine)}
+            onReset={handleResetSession}
+            onDeleteHistory={handleDeleteHistory}
           />
         </div>
       </main>
@@ -176,6 +246,7 @@ const App = () => {
         onClose={() => setIsEditModalOpen(false)}
         machines={machines}
         onUpdate={handleUpdateMachine}
+        onDelete={handleDeleteMachine}
       />
     </div>
   );

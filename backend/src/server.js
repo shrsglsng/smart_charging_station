@@ -9,9 +9,15 @@ const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
 
 // Connect to MongoDB first, THEN start listening
-mongoose.connect(process.env.MONGO_URI)
+const dbOptions = {
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000
+};
+
+mongoose.connect(process.env.MONGO_URI, dbOptions)
   .then(() => {
-    logger.info('Connected to MongoDB Atlas successfully.');
+    logger.info('Connected to MongoDB Atlas successfully with optimized connection pooling.');
     server.listen(PORT, () => {
       logger.info(`Server is running on port ${PORT}`);
     });

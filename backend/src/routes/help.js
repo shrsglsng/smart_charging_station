@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const helpTicketRepository = require('../repositories/helpTicketRepository');
+const logger = require('../logger/logger');
 
 // POST /api/v1/help/ticket
 router.post('/ticket', async (req, res) => {
@@ -20,7 +21,7 @@ router.post('/ticket', async (req, res) => {
 
     res.json({ success: true, ticketId: helpTicket._id });
   } catch (error) {
-    console.error('Error in help ticket:', error);
+    logger.error('Error in help ticket:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
