@@ -47,6 +47,7 @@ The system provides **30 minutes of free charging**, after which users can authe
     <td>
       <img src="images/Charging_Station_Body.jpeg" alt="Charging Station Body" width="400">
     </td>
+    <td width="70"></td>
     <td>
       <img src="images/Charging_Station_Door.jpeg" alt="Charging Door" width="200">
     </td>
