@@ -110,6 +110,12 @@ Door 33:
     ds_pin = A0
     cc_pin = A2
 
+LEDs:
+    led_signal_pin = 33
+
+HMI Tablet:
+    hmi_cc_pin = 21
+
 ## Board2
 
 Door 5: 
@@ -210,6 +216,7 @@ Door 38:
     ds_pin = A0
     cc_pin = A2
 
-
+LEDs:
+    led_signal_pin = 33doot
 
 

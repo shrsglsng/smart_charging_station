@@ -1,7 +1,22 @@
 #include "Arduino.h"
 #include <Adafruit_NeoPixel.h>
+#include <EEPROM.h>
 
 #define LED_PIN 33
+
+const int HMI_CHARGING_PIN = 21;
+const unsigned long HMI_MINUTE_MS = 60000UL; // 1 minute in ms
+const uint8_t HMI_STATE_ON = 1;
+const uint8_t HMI_STATE_OFF = 0;
+
+// EEPROM addresses for HMI state persistence across resets
+const int EEPROM_ADDR_MAGIC = 0;   // Magic byte (0xA5)
+const int EEPROM_ADDR_STATE = 1;   // 1 = ON, 0 = OFF
+const int EEPROM_ADDR_MINUTES = 2; // 0 to 29 minutes elapsed in current state
+
+uint8_t hmiState = HMI_STATE_ON;
+uint8_t hmiElapsedMinutes = 0;
+unsigned long lastHmiMinuteTick = 0;
 
 struct Slot {
     int id;
@@ -52,6 +67,8 @@ void checkDoorSensors();
 void updateLocks();
 void handleBoard2Event(String event);
 void updateSlotLed(int index);
+void initHmiCharging();
+void updateHmiCharging();
 
 void setup() {
     Serial.begin(115200);   // Debug
@@ -82,6 +99,9 @@ void setup() {
     }
     pixels.show();
     pixelsDirty = false;
+
+    // Initialize HMI Tablet Charging (Pin D21) with EEPROM state recovery
+    initHmiCharging();
 
     Serial.println("Mega Board 1 Ready (Interleaved Slots)");
 }
@@ -123,11 +143,66 @@ void loop() {
 
     checkDoorSensors();
     updateLocks();
+    updateHmiCharging();
 
     // Deferred LED rendering when UART line has been idle for at least 15ms
     if (pixelsDirty && (millis() - lastUartTime >= 15)) {
         pixels.show();
         pixelsDirty = false;
+    }
+}
+
+void initHmiCharging() {
+    pinMode(HMI_CHARGING_PIN, OUTPUT);
+
+    uint8_t magic = EEPROM.read(EEPROM_ADDR_MAGIC);
+    if (magic != 0xA5) {
+        // First boot / uninitialized EEPROM: default to ON state, minute 0
+        hmiState = HMI_STATE_ON;
+        hmiElapsedMinutes = 0;
+        EEPROM.update(EEPROM_ADDR_MAGIC, 0xA5);
+        EEPROM.update(EEPROM_ADDR_STATE, hmiState);
+        EEPROM.update(EEPROM_ADDR_MINUTES, hmiElapsedMinutes);
+    } else {
+        // Restore persisted state across Power-On Reset (POR)
+        hmiState = EEPROM.read(EEPROM_ADDR_STATE);
+        if (hmiState != HMI_STATE_ON && hmiState != HMI_STATE_OFF) {
+            hmiState = HMI_STATE_ON;
+        }
+        hmiElapsedMinutes = EEPROM.read(EEPROM_ADDR_MINUTES);
+        if (hmiElapsedMinutes >= 30) {
+            hmiElapsedMinutes = 0;
+        }
+    }
+
+    digitalWrite(HMI_CHARGING_PIN, hmiState == HMI_STATE_ON ? HIGH : LOW);
+    lastHmiMinuteTick = millis();
+
+    Serial.print("HMI Charging Initialized on Pin 21: ");
+    Serial.print(hmiState == HMI_STATE_ON ? "ON" : "OFF");
+    Serial.print(" (Elapsed: ");
+    Serial.print(hmiElapsedMinutes);
+    Serial.println(" mins)");
+}
+
+void updateHmiCharging() {
+    unsigned long now = millis();
+    if (now - lastHmiMinuteTick >= HMI_MINUTE_MS) {
+        lastHmiMinuteTick = now;
+        hmiElapsedMinutes++;
+
+        if (hmiElapsedMinutes >= 30) {
+            hmiElapsedMinutes = 0;
+            hmiState = (hmiState == HMI_STATE_ON) ? HMI_STATE_OFF : HMI_STATE_ON;
+            digitalWrite(HMI_CHARGING_PIN, hmiState == HMI_STATE_ON ? HIGH : LOW);
+            EEPROM.update(EEPROM_ADDR_STATE, hmiState);
+
+            Serial.print("HMI Charging Switched: ");
+            Serial.println(hmiState == HMI_STATE_ON ? "ON (Charging 30m)" : "OFF (Pausing 30m)");
+        }
+
+        // Persist minute progress to EEPROM (EEPROM.update only writes if changed)
+        EEPROM.update(EEPROM_ADDR_MINUTES, hmiElapsedMinutes);
     }
 }
 
