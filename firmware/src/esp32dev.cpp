@@ -1,6 +1,6 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <HTTPCli"{'?ent.h>
+#include <HTTPClient.h>
 #include <ArduinoJson.h>
 
 // --- Configuration ---
@@ -27,7 +27,13 @@ void syncState();
 void setHeaders(HTTPClient &http);
 void setup() {
     Serial.begin(115200);   // Debug
+    delay(500);             // Allow USB-UART chip and host driver baud rate to stabilize after USB plug-in
+    Serial.flush();
+
     Serial1.begin(115200, SERIAL_8N1, 16, 17); // Communication with Mega (RX=16, TX=17)
+    delay(100);
+    Serial1.println();      // Clear startup pin glitch state on receiver
+    Serial1.flush();
 
     delay(1000);
     Serial.println("\n\n========================================");
@@ -59,13 +65,15 @@ void loop() {
     // Read events from Mega
     while (Serial1.available() > 0) {
         char c = Serial1.read();
+        if (c == '\0' || (uint8_t)c > 127) continue; // Ignore NULL bytes and non-ASCII framing errors
+
         if (c == '\n') {
             inputBuffer.trim();
             if (inputBuffer.length() > 0) {
                 handleMegaEvent(inputBuffer);
             }
             inputBuffer = "";
-        } else {
+        } else if (c != '\r') {
             inputBuffer += c;
         }
     }
@@ -80,8 +88,8 @@ void loop() {
 void setHeaders(HTTPClient &http) {
     http.addHeader("Content-Type", "application/json");
     http.addHeader("x-machine-id", MACHINE_ID);
-    http.addHeader("Connection", "close"); // Force close to avoid socket exhaustion on hotspots
-    http.setTimeout(15000); // 15s timeout for mobile network latency
+    http.addHeader("Connection", "keep-alive"); // Changed to keep-alive for better performance
+    http.setTimeout(10000); // Increased timeout to 10s to avoid code -11
 }
 
 void handleMegaEvent(String event) {
@@ -181,14 +189,14 @@ void syncState() {
                     if (!firstSync && lastLockState[slot] == true && lock_engaged == false) {
                         Serial1.printf("CMD:UNLOCK:%d\n", slot);
                         Serial.printf("[SYNC] Unlock triggered for Slot %d\n", slot);
-                        delay(50); // Small delay to prevent buffer overflow
+                        delay(75); // 75ms delay to prevent buffer overflow on Mega
                     }
 
                     // 2. Update Relay State (Only if changed)
                     if (firstSync || lastRelayState[slot] != relay_on) {
                         Serial1.printf("CMD:%s:%d\n", relay_on ? "CHG_ON" : "CHG_OFF", slot);
                         lastRelayState[slot] = relay_on;
-                        delay(50); // Small delay
+                        delay(75); // 75ms delay to prevent buffer overflow on Mega
                     }
 
                     lastLockState[slot] = lock_engaged;
